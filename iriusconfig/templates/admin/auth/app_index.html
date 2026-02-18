@@ -1,0 +1,61 @@
+
+{% extends "admin/app_index.html" %}
+{% load static %}
+{% block content %}
+    {{ block.super }}
+
+    <div class="module aligned wide">
+        <h2>ГЕНЕРАЦИЯ ШИФРОВАННОГО ПАРОЛЯ</h2>
+        <form method="POST" action="{% url 'general:generate' %}">
+            {% csrf_token %}
+            <table>
+                <tr>
+                    <td align="right"><label for="id_password">Введите пароль:</label></td>
+                    <td><input id="id_password" type="text" name="password" maxlength="100"></td>
+                </tr>
+                <tr>
+                    <td align="right"><label for="id_password_new">Новый пароль:</label></td>
+                    <td><input id="id_password_new" type="text" name="password_new" maxlength="100" readonly="readonly"></td>
+                </tr>
+            </table>
+
+            <div style="text-align: left; margin-top: 20px;">
+                <button type="button" id="btn_gen" style="background-color: #4CAF50; color: white; border: none; border-radius: 20px; padding: 10px 20px; cursor: pointer;">
+                    Сгенерировать >>
+                </button>
+            </div>
+        </form>
+    </div>
+    <script type="text/javascript" src="{% static "js/jquery-3.7.1.min.js" %}"></script>   
+    <script>
+        $(document).ready(function () {
+            $("#btn_gen").on('click', function (e) {
+                e.preventDefault();
+
+                const formData = {
+                    password: $("#id_password").val(),
+                };
+
+                $.ajax({
+                    url: "{% url 'general:generate' %}",
+                    type: "POST",
+                    headers: {'X-CSRFToken': '{{ csrf_token }}'},
+                    data: formData,
+                    success: function (data) {
+                        if (data) {
+                            console.log(data);
+                            document.getElementById("id_password_new").value = data["password"];
+                            alert("Пароль успешно сгенерирован!");
+                        }
+                        //console.log(data["password"])
+                        
+                    },
+                    error: function (xhr, status, error) {
+                        console.error("Ошибка:", error);
+                        alert("Произошла ошибка при генерации пароля.");
+                    }
+                });
+            });
+        });
+    </script>
+{% endblock %}

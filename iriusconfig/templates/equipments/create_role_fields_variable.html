@@ -1,0 +1,332 @@
+{% comment %} {% for key, values in form.attr_fields_by_group.items %} {% endcomment %}
+<div class="col">
+    <div class="card">
+        <div class="card-body">
+            <h5 class="card-title"> Роли переменных </h5>
+            {% comment %} <p class="card-text">Данные, используемые в системе. Обязательны для заполнения.</p> {% endcomment %}
+            <ul class="list-group list-group-flush">
+            <li class="list-group-item list-group-item-secondary" aria-disabled="true">
+            </li>
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+                <div align="left">Роли</div> <div align="center">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Таймер</div> <div align="right">Переменная&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+                        <span data-tooltip="up" aria-label="Маскирование">M</span>
+                      &nbsp;</div>
+            </li>
+            
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+                 1&nbsp<input name="var_num_role1" id="id_var_num_role1" type="tel" style="width:70px;" class="form-control" placeholder="" step="any" onkeydown="VarRolehandleEnter(event,1)"/>
+                {% comment %} <span data-tooltip="up" aria-label="Сообщение"> {% endcomment %}
+                    <select name="var_role1" id="id_var_role1" class="form-select" arial-label="Default select">
+                        
+                        <option value="select_item" {% if not form.VAR_DATA_ROLES %}selected{%endif%}>Не выбран</option>                                
+                        {% for item_type in form.ROLES.variable %}
+                            <option value={{ item_type.id }} {% if form.VAR_DATA_ROLES.0.n_role_id == item_type.id %}selected{% endif %}>{{ item_type.n_role_index }}.{{ item_type.c_role_desc }}</option>
+                        {% endfor %}
+                    </select>
+                {% comment %} </span> {% endcomment %}
+                <input name="var_timer1" id="id_var_timer1" type="number" style="width:90px;" class="form-control" placeholder="" step="any" {% if form.VAR_DATA_ROLES != None %} value={{form.VAR_DATA_ROLES.0.n_timer }} {% else %} 0 {%endif%} />
+                {% comment %} <input name="var_timer1" id="id_var_timer1" type="number" class="form-control" placeholder="" step="any" {% if form.VAR_DATA_ROLES != None %} value={{form.VAR_DATA_ROLES.0.n_timer }} {% else %} 0 {%endif%} /> {% endcomment %}
+                
+                <select name="var_par1" id="id_var_par1" class="form-select" arial-label="Default select">
+                    <option value="select_item" {% if not form.VAR_DATA_ROLES %}selected{%endif%}>Не выбран</option>                                
+                    {% for item_par in form.DATA_ROLES.variable %}
+                        <option value={{ item_par.id }} {% if item_par.id == form.VAR_DATA_ROLES.0.n_variable_id %}selected{%endif%}>{{ item_par.n_variable_index }}: {{ item_par.c_desc_variable }}</option>
+                    {% endfor %}
+                </select>
+                <input name="var_num_par1" id="id_var_num_par1" type="tel" style="width:70px;" class="form-control" placeholder="" step="any" onkeydown="VarVarhandleEnter(event,1)"/>
+                &nbsp&nbsp<input name='var_masked1' id="id_var_masked1" type='checkbox' class="form-check-label" />&nbsp&nbsp
+                {% comment %} <button type="button" id="button_del_var" class="btn btn-secondary" disabled>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-dash" viewBox="0 0 16 16">
+                        <path d="M4 8a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7A.5.5 0 0 1 4 8z"/>
+                      </svg>
+                </button> {% endcomment %}
+            </li>
+            <div id="var_new_items">
+                {% for i in form.RANGE_100 %}
+                    <div id="var_new_items_{{i}}">
+                    </div>
+                {% endfor %}
+            </div> 
+            
+            <li class="list-group-item d-flex justify-content-between align-items-center" align="center">
+                <button type="button" id="button_add_var" class="btn btn-primary">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-plus" viewBox="0 0 16 16">
+                        <path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4z"/>
+                    </svg>
+                </button>
+                <button type="button" id="button_del_var" class="btn btn-primary" onclick="VarItemDelete()" disabled>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-dash" viewBox="0 0 16 16">
+                        <path d="M4 8a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7A.5.5 0 0 1 4 8z"/>
+                      </svg>
+                </button>
+            </li>
+            </ul>
+        </div>
+    </div>
+</div>
+{% comment %} <script>
+    new SlimSelect({
+      select: '#id_var_role1'
+    })
+  </script> {% endcomment %}
+<script>
+$(document).ready(function() {
+
+        var_line_count = 1
+        var_line_using = []
+    
+        var var_data_roles_len = {{ form.VAR_DATA_ROLES|length }}
+        if (var_data_roles_len > 1)
+        {
+            AddVarRoles();
+        }
+
+        $('#button_add_var').on('click', function(){
+            
+            console.log(var_line_count)
+            var_line_count += 1
+            const var_new_items = document.getElementById('var_new_items_'+ var_line_count);      
+
+    
+            var_new_items.innerHTML = var_new_items.innerHTML + ' \
+            <li class="list-group-item d-flex justify-content-between align-items-center" id="role_var'+var_line_count+'"> \
+                '+var_line_count+'&nbsp<input name="var_num_role'+var_line_count+'" id="id_var_num_role'+var_line_count+'" type="tel" style="width:70px;" class="form-control" placeholder="" step="any" onkeydown="VarRolehandleEnter(event,'+var_line_count+')"/> \
+                <select name="var_role'+var_line_count+'" id="id_var_role'+var_line_count+'" class="form-select" arial-label="Default select"> \
+                    <option value="select_item" selected>Не выбран</option>                                \
+                    {% for item_type in form.ROLES.variable %} \
+                        <option value={{ item_type.id }}>{{ item_type.n_role_index }}.{{ item_type.c_role_desc }}</option> \
+                    {% endfor %} \
+                </select> \
+                <input name="var_timer'+var_line_count+'" id="id_var_timer'+var_line_count+'" style="width:90px;" type="number" class="form-control" placeholder="" step="any" /> \
+                <select name="var_par'+var_line_count+'" id="id_var_par'+var_line_count+'" class="form-select" arial-label="Default select"> \
+                    <option value="select_item">Не выбран</option>                                \
+                    {% for item_par in form.DATA_ROLES.variable %} \
+                        <option value={{ item_par.id }}>{{ item_par.n_variable_index }}: {{ item_par.c_desc_variable }}</option> \
+                    {% endfor %} \
+                </select> \
+                <input name="var_num_par'+var_line_count+'" id="id_var_num_par'+var_line_count+'" type="tel" style="width:70px;" class="form-control" placeholder="" step="any" onkeydown="VarVarhandleEnter(event,'+var_line_count+')"/> \
+                &nbsp;&nbsp;<input name="var_masked'+var_line_count+'" id="id_var_masked'+var_line_count+'" type="checkbox" class="form-check-label" />&nbsp;&nbsp; \
+            </li> ';
+
+
+            if (var_line_count > 1)
+            {
+                document.getElementById('button_del_var').disabled = false;
+            }
+            if (var_line_count == 100)
+            {
+                document.getElementById('button_del_var').disabled = true;
+            }
+
+        });
+
+
+    function AddVarRoles(){
+
+        for (var index=1; index < var_data_roles_len; index++)
+        {
+            var_line_count += 1
+            const var_new_items = document.getElementById('var_new_items_' + var_line_count);
+
+            var_new_items.innerHTML = var_new_items.innerHTML + ' \
+            <li class="list-group-item d-flex justify-content-between align-items-center" id="role_var'+var_line_count+'"> \
+            '+var_line_count+'&nbsp<input name="var_num_role'+var_line_count+'" id="id_var_num_role'+var_line_count+'" type="tel" style="width:70px;" class="form-control" placeholder="" step="any" onkeydown="VarRolehandleEnter(event,'+var_line_count+')"/> \
+            <select name="var_role'+var_line_count+'" id="id_var_role'+var_line_count+'" class="form-select" arial-label="Default select"> \
+                <option value="select_item">Не выбран</option>                                \
+                {% for item_type in form.ROLES.variable %} \
+                    <option value={{ item_type.id }}>{{ item_type.n_role_index }}.{{ item_type.c_role_desc }}</option> \
+                {% endfor %} \
+            </select> \
+            <input name="var_timer'+var_line_count+'" id="id_var_timer'+var_line_count+'" style="width:90px;" type="number" class="form-control" placeholder="" step="any" /> \
+            <select name="var_par'+var_line_count+'" id="id_var_par'+var_line_count+'" class="form-select" arial-label="Default select"> \
+                <option value="select_item">Не выбран</option>                                \
+                {% for item_par in form.DATA_ROLES.variable %} \
+                    <option value={{ item_par.id }}>{{ item_par.n_variable_index }}: {{ item_par.c_desc_variable }}</option> \
+                {% endfor %} \
+            </select> \
+            <input name="var_num_par'+var_line_count+'" id="id_var_num_par'+var_line_count+'" type="tel" style="width:70px;" class="form-control" placeholder="" step="any" onkeydown="VarVarhandleEnter(event,'+var_line_count+')"/> \
+            &nbsp;&nbsp;<input name="var_masked'+var_line_count+'" id="id_var_masked'+var_line_count+'" type="checkbox" class="form-check-label" />&nbsp;&nbsp; \
+            </li>';
+
+            if (var_line_count > 1)
+            {
+                document.getElementById('button_del_var').disabled = false;
+            }
+            if (var_line_count == 100)
+            {
+                document.getElementById('button_del_var').disabled = true;
+            }
+        }
+    }
+
+    var n_role_id = [
+        {% for item in form.VAR_DATA_ROLES %}
+        {{ item.n_role_id }},
+        //{{ item.n_role }},
+        {% endfor %}
+        ];
+
+    var n_variable_id = [
+        {% for item in form.VAR_DATA_ROLES %}
+        {{ item.n_variable_id }},
+        //{{ item.n_variable }},
+        {% endfor %}
+        ];
+
+    var n_variable_index = [
+        {% for item in form.VAR_DATA_ROLES %}
+        {{ item.n_variable__n_variable_index }},
+        {% endfor %}
+        ];
+
+    var n_timer = [
+        {% for item in form.VAR_DATA_ROLES %}
+            '{{ item.n_timer }}'.replace(',', '.'),
+        {% endfor %}
+        ];
+    var b_masked = [
+        {% for item in form.VAR_DATA_ROLES %}
+            '{{ item.b_masked }}'.toLowerCase() == 'true',
+        {% endfor %}
+        ];      
+    console.log(n_timer);
+    console.log(typeof n_timer[1]);
+
+    for (var index=0; index < var_data_roles_len; index++)
+    {
+        const elmnt = document.getElementById('id_var_role'+ (index+1))
+        const elmnt1 = document.getElementById('id_var_par'+ (index+1))
+        
+        var role_first = false;
+        var var_first = false;
+
+        for(var i=0; i < elmnt.options.length; i++)
+        {
+            if(elmnt.options[i].value == n_role_id[index]) {
+            elmnt.getElementsByTagName('option')[i].selected = true;//'selected';
+            //if (not role_first)
+            document.getElementById('id_var_num_role'+ (index+1)).value = n_role_id[index];
+            //role_first=true;}
+
+            break;
+            }
+        }
+        for (var i=0; i < elmnt1.options.length; i++)
+        {
+            if(elmnt1.options[i].value == n_variable_id[index]) {
+            elmnt1.getElementsByTagName('option')[i].selected = true;//'selected';
+            //if (not var_first)
+            document.getElementById('id_var_num_par'+ (index+1)).value = n_variable_index[index];
+            //var_first=true;}
+            break;
+            }
+        }
+        console.log('id_var_timer'+ (index+1) + ':  ' + n_timer[index])
+        document.getElementById('id_var_timer'+ (index+1)).value = n_timer[index];
+        document.getElementById('id_var_masked'+ (index+1)).checked = b_masked[index];    
+    //document.getElementById('id_var_par'+ (index+1)).value = n_variable_id[index];
+//https://stackoverflow.com/questions/10911526/how-do-i-programatically-select-an-html-option-using-javascript
+    }
+});
+
+    function VarItemDelete(){
+        var var_new_items = document.getElementById("var_new_items_" + var_line_count);
+        var del_item = document.getElementById("role_var" + var_line_count);
+        var_new_items.removeChild(del_item);
+        var_line_count -= 1
+        if (var_line_count < 100)
+        {
+            document.getElementById('button_del_var').disabled = false;
+        }    
+        if (var_line_count == 1)
+        {
+            document.getElementById('button_del_var').disabled = true;
+        }
+    };  
+    function VarRolehandleEnter(event,id) {
+        // Проверяем, была ли нажата клавиша Enter (код 13)
+        if (event.key === "Enter" || event.keyCode === 13) {
+            // Предотвращаем стандартное поведение (перезагрузку страницы)
+            event.preventDefault();
+            // Получаем значение из поля ввода
+            const inputValue = document.getElementById("id_var_num_role"+id).value;
+
+            const elmnt = document.getElementById('id_var_role'+ id)
+
+            var roles = [
+            {% for item in form.ROLES.variable %}
+            {{ item.id }},
+            {% endfor %}
+            ];
+
+            if (inputValue > roles.length )
+            {
+            alert(`Введите корректный индекс! Индекса ${inputValue} не существует.`);
+            }
+            else
+            {
+            elmnt.getElementsByTagName('option')[inputValue].selected = true;
+            }
+            //alert(`Вы нажали Enter! Значение: ${inputValue}`);
+        }
+    }
+    function VarVarhandleEnter(event,id) {
+        // Проверяем, была ли нажата клавиша Enter (код 13)
+        if (event.key === "Enter" || event.keyCode === 13) {
+            // Предотвращаем стандартное поведение (перезагрузку страницы)
+            event.preventDefault();
+
+            // Получаем значение из поля ввода
+            const inputValue = document.getElementById("id_var_num_par"+id).value;
+
+            // Выполняем ваш скрипт (например, выводим значение в консоль)
+            //console.log("Значение поля:", inputValue);
+
+            var n_variable_id = [
+            {% for item in form.DATA_ROLES.variable %}
+            {{ item.id }},
+            {% endfor %}
+            ];
+    
+            var n_variable_index = [
+            {% for item in form.DATA_ROLES.variable %}
+            {{ item.n_variable_index }},
+            {% endfor %}
+            ];
+
+            const elmnt = document.getElementById('id_var_par'+ id)
+            // Выясняем индекс по id
+            var set_value = 0;
+            for (var index=0; index < n_variable_index.length; index++)
+            {
+                //console.log(index + ":" + inputValue + "==" + n_variable_index[index]);
+                if (inputValue == n_variable_index[index])
+                    {
+                        //console.log("set_value = " + n_variable_id[index]);
+                        set_value = n_variable_id[index];
+                        break;}
+                    
+            }
+            console.log(set_value);
+            if (set_value == 0)
+            {
+                alert(`Введите корректный индекс! Индекса ${inputValue} не существует.`);
+            }
+            else 
+            {
+
+                for (var i=0; i < elmnt.options.length; i++)
+                {
+                    if (elmnt.getElementsByTagName('option')[i].value == set_value)
+                        {
+                        elmnt.getElementsByTagName('option')[i].selected = true;
+                        }
+                
+                }
+            }
+
+        //alert(`Вы нажали Enter! Значение: ${inputValue}`);
+        }
+    }
+
+</script>

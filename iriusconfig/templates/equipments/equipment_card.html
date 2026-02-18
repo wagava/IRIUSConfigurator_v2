@@ -1,0 +1,22 @@
+{% comment %} <div class="col d-flex justify-content-center"> {% endcomment %}
+  {% comment %} <div class="card" style="width: 40rem;"> {% endcomment %}
+    {% comment %} <div class="container" style="background-color: lightgray;> {% endcomment %}
+    <div class="container">
+      <tr>
+        <td><strong>{{ equipment.n_equipment_index }}</strong></td>
+        <td>{{ equipment.c_name_equipment }}</td>
+        <td>{{ equipment.c_desc_equipment }}</td>
+        <td>{{ equipment.n_controller }}</td>
+        <td>
+          {% if user.is_staff %}
+          <a href="{% url 'equipments:equipment_edit' plc_id equipment.id %}" class="card-link">Редактировать</a>
+          {% endif %}
+        </td>
+        <td>
+          {% if user.is_staff %}
+          <a href="{% url 'equipments:equipment_delete' plc_id equipment.id %}" class="card-link">Удалить</a>
+          {% endif %}
+        </td>
+      </tr>
+
+  </div>

@@ -1,0 +1,294 @@
+{% extends "base.html" %}
+{% load django_bootstrap5 %}
+
+{% block title %}
+  {% if '/edit/' in request.path %}
+    Редактирование
+  {% elif "/delete/" in request.path %}
+    Удаление
+  {% else %}
+    Добавление
+  {% endif %}
+{% endblock %}
+{% block content %}
+  <div class="col d-flex justify-content-center">
+    <div class="card" style="width: 40rem;">
+      <div class="card-header">
+        {% if '/edit/' in request.path %}
+          Редактирование
+        {% elif '/delete/' in request.path %}
+          Удаление
+        {% else %}
+          Добавление
+        {% endif %}
+      </div>
+      <style>
+        .not-visible{display: none;}
+      </style>
+      <div class="card-body">
+        <form method="post" enctype="multipart/form-data">
+          {% csrf_token %}
+          {% if '/delete/' in request.path %}
+            {% bootstrap_form form %}
+            <div>
+              <p>
+                Подтвердите, пожалуйста, удаление модуля: 
+              </p>
+            <p>
+              <b>Контроллер:</b> &nbsp; {{ object.n_controller.c_desc_controller }}
+            </p>
+            <p>
+              <b>Имя:</b> &nbsp; {{ object.c_name_module }} 
+            </p>
+            <p>
+              <b>Описание:</b> &nbsp; {{ object.c_desc_module }}
+            </p>
+
+            </div>
+            <br>
+          {% else %}
+            {% include 'modules/navigation.html' %}
+            {% bootstrap_form form %}
+          {% endif %}
+          {% comment %} {% if '/edit/' in request.path or '/create/' in request.path%}
+              {% if '/edit/' in request.path %}
+                <div>
+                  <button type="button" class="btn btn-outline-primary"><a class="text-decoration-none text-reset"
+                    href="{% url 'modules:module_edit' object.n_controller_id form.MOVEMENT_ID.prev %}">Предыдущий</a></button>                
+
+                    <button type="button" class="btn btn-outline-primary"><a class="text-decoration-none text-reset"
+                      href="{% url 'modules:module_edit' object.n_controller_id form.MOVEMENT_ID.next %}">Следующий</a></button>
+
+                      {% url 'modules:module_by_plc' object.n_controller_id as cancel_url %}
+                      {% bootstrap_button button_type="link" href=cancel_url content="Отмена" %}
+
+                </div>
+                <br>
+              {% endif %}
+            {% bootstrap_button button_type="submit" content="Сохранить в БД" %}
+            <input name="download_to_plc" type="checkbox" class="form-check-label" />Сохранить в ПЛК
+            {% if '/edit/' not in request.path %}
+
+              {% url 'modules:module_by_plc' object.n_controller_id as cancel_url %}
+              {% bootstrap_button button_type="link" href=cancel_url content="Отмена" %}
+            {% endif %}
+
+          {% elif '/delete/' in request.path %}
+           {% bootstrap_button button_type="submit" content="Удалить" %}
+
+           {% url 'modules:module_by_plc' object.n_controller_id as cancel_url %}
+           {% bootstrap_button button_type="link" href=cancel_url content="Отмена" %}
+
+          {% endif %}
+
+
+          {% if '/edit/' in request.path %}
+            <div>
+              <br>
+            <button type="button" class="btn btn-outline-primary" id="btn_upload">Получить из ПЛК</button>    
+            </div>           
+          {% endif %} {% endcomment %}
+          {% if '/edit/' in request.path or '/create/' in request.path%}
+    {% if '/edit/' in request.path %}
+
+        <button type="button" class="btn btn-outline-primary"><a class="text-decoration-none text-reset"
+        href="{% url 'modules:module_edit' object.n_controller_id form.MOVEMENT_ID.prev %}"> << </a></button>                
+        <input name="module_index_below" id="module_index_id_below" style="width: 40px;text-align: center" type="text" value= {{ object.n_module_index }} >
+        <button type="button" class="btn btn-outline-primary"><a class="text-decoration-none text-reset"
+            href="{% url 'modules:module_edit' object.n_controller_id form.MOVEMENT_ID.next %}"> >> </a></button>
+            {% url 'modules:module_by_plc' object.n_controller_id as cancel_url %}
+            {% bootstrap_button button_type="link" href=cancel_url content="Отмена" %}
+
+    {% endif %}
+    {% bootstrap_button button_type="submit" content="Сохранить в БД" %}
+    <input name="download_to_plc" type="checkbox" style="width: 20px;height: 20px;" class="form-check-label" /> Сохранить в ПЛК
+    {% if '/edit/' not in request.path %}
+        {% url 'modules:module_by_plc' object.n_controller_id as cancel_url %}
+        {% bootstrap_button button_type="link" href=cancel_url content="Отмена" %}
+    {% endif %}
+
+    {% elif '/delete/' in request.path %}
+        {% bootstrap_button button_type="submit" content="Удалить" %}
+        {% url 'modules:module_by_plc' object.n_controller_id as cancel_url %}
+        {% bootstrap_button button_type="link" href=cancel_url content="Отмена" %}
+
+    {% endif %}
+
+    {% if '/edit/' in request.path %}
+
+    <button type="button" class="btn btn-outline-primary" id="btn_upload_below">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"><path fill="currentColor" d="M18 9h-2c-.6 0-1 .4-1 1s.4 1 1 1h2c.6 0 1 .4 1 1v7c0 .6-.4 1-1 1H6c-.6 0-1-.4-1-1v-7c0-.6.4-1 1-1h2c.6 0 1-.4 1-1s-.4-1-1-1H6c-1.7 0-3 1.3-3 3v7c0 1.7 1.3 3 3 3h12c1.7 0 3-1.3 3-3v-7c0-1.7-1.3-3-3-3zM9.7 6.7L11 5.4V17c0 .6.4 1 1 1s1-.4 1-1V5.4l1.3 1.3c.2.2.4.3.7.3c.3 0 .5-.1.7-.3c.4-.4.4-1 0-1.4l-3-3c-.4-.4-1-.4-1.4 0l-3 3c-.4.4-.4 1 0 1.4c.4.4 1 .4 1.4 0z"/></svg>
+    </button>    
+
+    {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <script>
+
+    $(document).ready(function () {
+      console.log('start');
+    
+      var mes_len = {{ view.kwargs.RETURN_BLOCK_FROM_PLC|length }};
+      console.log(mes_len);
+    
+      if (mes_len > 0) {
+        var mes_response = [];
+    
+        {% for item in view.kwargs.RETURN_BLOCK_FROM_PLC %}
+    
+        if (typeof "{{ item.error_num }}" !== 'undefined' && "{{ item.error_num }}" !== '') {
+          mes_response.push("{{ item.error_num }}");
+        }
+        if (typeof "{{ item.index_num }}" !== 'undefined' && "{{ item.index_num }}" !== '' && "{{ item.index_num }}" !== 'None') {
+          mes_response.push("{{ item.index_num }}");
+        }
+        if (typeof "{{ item.param_num }}" !== 'undefined' && "{{ item.param_num }}" !== '' && "{{ item.param_num }}" !== 'None') {
+          mes_response.push("{{ item.param_num }}");
+        }
+    
+        {% endfor %}
+    
+        alert(mes_response);
+        console.log(mes_response);
+      }
+    });
+    
+    
+    $("#btn_download").on('click', function (e){
+      /*$(document).on('submit', function (e){  */    
+
+      //var formdata = $(this).serialize()
+      e.preventDefault();
+      $.ajax({
+
+          url: "{% url 'modules:download_modules' view.kwargs.plc_id %}?min={{object.id}}&max={{object.id}}&action=download",     
+          //url: "{% url 'modules:check_state' %}",
+          //headers: {'X-CSRFToken': csrftoken},
+          //data: {'search_input': search_input},
+          data: {csrfmiddlewaretoken: '{{ csrf_token }}',
+                'formdata':frm.serialize()},
+          type: "POST",
+          //dataType: 'html',
+          success: function (data) {
+              if (data) {
+                  //console.log(data);
+                  console.log('выполнился success');
+                  if (data.return_block.length > 0)
+                  {
+                  var messages = ['При загрузке возникли ошибки:\r\n\r\n'];
+                  //if (data.error_back == true)  
+                  //{
+                    //alert('выполнился success');
+                    console.log(data.return_block)
+                    //alert(data.error_back);                    
+                    for (var x=0; x<data.return_block.length; x++)
+                    {
+                      console.log(data.return_block[x].error_num)
+                      messages.push(data.return_block[x].error_num + ', ' + data.return_block[x].index_num + '\r\n\r\n')
+                    }
+                    alert(messages);
+                  }
+                  else
+                  {alert('Модуль успешно загружен в ПЛК');}
+                  //}             
+                  // Add the http response to element
+                  //target_element.html(data);
+              }
+          }
+      });
+
+
+    });
+
+    $("#btn_upload").on('click', function (e){
+      e.preventDefault();
+      let btn = $(this);
+      btn.attr("disabled", true);
+      /*$(this).prop("disabled",true);*/
+      $.ajax({
+
+          url: "{% url 'modules:upload_modules' view.kwargs.plc_id %}?min={{object.id}}&max={{object.id}}&action=upload",     
+
+          type: "GET",
+          //dataType: 'html',
+          success: function (data) {
+              btn.attr("disabled", false);
+              if (data) {
+                  console.log(data);
+                  console.log('выполнился success');
+                  if (data.return_block.length > 0)
+                  {
+                  var messages = ['Данные в БД и ПЛК не соответствуют по следующим позициям:\r\n\r\n'];
+                  //if (data.error_back == true)  
+                  //{
+                    //alert('выполнился success');
+                    console.log(data.return_block)
+                    //alert(data.error_back);                    
+                    for (var x=0; x<data.return_block.length; x++)
+                    {
+                      console.log(data.return_block[x])
+                      messages.push(data.return_block[x] + '\r\n\r\n')
+                    }
+                    alert(messages);
+                  }
+                  else
+                  {alert('Данные в БД и ПЛК идентичны');}
+                  //}             
+                  // Add the http response to element
+                  //target_element.html(data);
+                  
+              }
+              
+          }
+      });
+    });
+    $("#btn_upload_below").on('click', function (e){
+      e.preventDefault();
+      let btn = $(this);
+      btn.attr("disabled", true);
+      /*$(this).prop("disabled",true);*/
+      $.ajax({
+
+          url: "{% url 'modules:upload_modules' view.kwargs.plc_id %}?min={{object.id}}&max={{object.id}}&action=upload",     
+
+          type: "GET",
+          //dataType: 'html',
+          success: function (data) {
+              btn.attr("disabled", false);
+              if (data) {
+                  console.log(data);
+                  console.log('выполнился success');
+                  if (data.return_block.length > 0)
+                  {
+                  var messages = ['Данные в БД и ПЛК не соответствуют по следующим позициям:\r\n\r\n'];
+                  //if (data.error_back == true)  
+                  //{
+                    //alert('выполнился success');
+                    console.log(data.return_block)
+                    //alert(data.error_back);                    
+                    for (var x=0; x<data.return_block.length; x++)
+                    {
+                      console.log(data.return_block[x])
+                      messages.push(data.return_block[x] + '\r\n\r\n')
+                    }
+                    alert(messages);
+                  }
+                  else
+                  {alert('Данные в БД и ПЛК идентичны');}
+                  //}             
+                  // Add the http response to element
+                  //target_element.html(data);
+                  
+              }
+              
+          }
+      });
+    });
+
+
+  </script>  
+
+
+{% endblock %}

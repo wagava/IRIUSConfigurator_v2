@@ -1,0 +1,48 @@
+{% comment %} <div class="col d-flex justify-content-center"> {% endcomment %}
+  {% comment %} <div class="card" style="width: 40rem;"> {% endcomment %}
+    {% comment %} <div class="container" style="background-color: lightgray;> {% endcomment %}
+    <div class="container">
+    <div class="card-body">
+      {% comment %} {% if post.image %}
+        <a href="{{ post.image.url }}" target="_blank">
+          <img class="border-3 rounded img-fluid img-thumbnail mb-2 mx-auto d-block" src="{{ post.image.url }}">
+        </a>
+      {% endif %} {% endcomment %}
+      {% comment %} <style>
+        table, th, td {
+          border: 1px solid black;
+          border-collapse: collapse;
+        }
+        
+        th:nth-child(even),td:nth-child(even) {
+          background-color: #D6EEEE;
+        } {% endcomment %}
+        </style>
+      <table style="border: 1px solid gray;background-color: #C1E7FD;">
+        <tr><td style="width:5rem"><h5 class="card-title">{{ variable.n_variable_index }} </h5></td>
+          <td style="width:10rem">{{ variable.c_name_variable }}</td>
+          <td style="width:50rem">{{ variable.c_desc_variable }}</td>
+          <td style="width:5rem">{{ variable.n_controller }}</td>
+          {% comment %} <td style="width:10rem"><a href="{% url 'variables:module_detail' module.id %}" class="card-link">Просмотр</a></td>{% endcomment %}
+          <td style="width:10rem"><a href="{% url 'variables:variable_edit' plc_id variable.id %}" class="card-link">Редактировать</a></td>
+          <td style="width:10rem"><a href="{% url 'variables:variable_delete' plc_id variable.id %}" class="card-link">Удалить</a></td></tr> 
+      </table>
+      {% comment %} <h5 class="card-title">{{ module.c_name_module }}</h5>
+      <h6 class="card-subtitle mb-2 text-muted">
+        <small> {% endcomment %}
+          {% comment %} {% if not post.is_published %}
+            <p class="text-danger">Пост снят с публикации админом</p>
+          {% elif not post.category.is_published %}
+            <p class="text-danger">Выбранная категория снята с публикации админом</p>
+          {% endif %}
+          {{ post.pub_date|date:"d E Y, H:i" }} | {% if post.location and post.location.is_published %}{{ post.location.name }}{% else %}Планета Земля{% endif %}<br> {% endcomment %}
+          {% comment %} От автора <a class="text-muted" href="{% url 'blog:profile' post.author.username %}">@{{ post.author.username }}</a> в
+          категории {% include "includes/category_link.html" %} {% endcomment %}
+        {% comment %} </small>
+      </h6> {% endcomment %}
+      {% comment %} <p class="card-text">{{ module.c_name_module|truncatewords:10 }}</p>
+      <a href="{% url 'modules:module_detail' module.id %}" class="card-link">Читать полный текст</a> {% endcomment %}
+      {% comment %} <a href="{% url 'blog:post_detail' post.id %}" class="card-link text-muted">Комментарии ({{ post.comment_count }})</a> {% endcomment %}
+    </div>
+  </div>
+{% comment %} </div> {% endcomment %}

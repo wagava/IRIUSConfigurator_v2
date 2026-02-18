@@ -1,0 +1,249 @@
+{% extends "base.html" %}
+{% load static %}
+{% load django_bootstrap5 %}
+{% block title %}
+  Module list
+{% endblock %}
+{% block control_panel %}
+<form id="module_form">  
+  {% comment %} action={% url = 'modules:module_by_plc' %} method="post"> {% endcomment %}
+  {% comment %} {% csrf_token %} {% endcomment %}
+  {% comment %} <form method="post" action="{% url 'modules:module_by_plc' plc_selector %}"> {% endcomment %}
+    <style>
+      .not-visible{display: none;}
+    </style>
+  <div class="container d-flex flex-wrap" style= "background-color:lightgray;padding: 5px 5px">
+
+    <div class="container text-center">
+      <div class="row justify-content-md-left">
+        <div class="col-md-auto">
+          <div style="padding: 5px 5px">
+            Выбор ПЛК:
+          </div>
+        </div>
+        <div class="col-md-auto">
+          <select class="form-select selcls" name="plc_selector" arial-label="Default select PLC" size="sm" style="width: 10rem;padding: 0px 5px" >
+            {% for plc in plc_list %}
+              {% if plc_id == plc.0 %}
+                <option value={{plc.0}} selected>{{plc.1}}</option>
+              {% else %}
+                <option value={{plc.0}}>{{plc.1}}</option>
+              {% endif %}
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-auto">
+          <div style="padding: 0px 5px">
+            <button type="submit" class="btn btn-outline-primary" formaction="{% url 'modules:module_by_plc_filter' plc_id=0 %}" onclick="updateAction(this)">
+            {% comment %} <button type="submit" class="btn btn-outline-primary"> {% endcomment %}
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-arrow-clockwise" viewBox="0 0 16 16">
+                <path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2v1z"/>
+                <path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466z"/>
+              </svg>
+              {% comment %} <a class="text-decoration-none text-reset"
+            href="{% url 'modules:module_by_plc' plc_id %}">
+            Применить</a></button> {% endcomment %}
+            Применить</button>         
+          </div>
+        </div>
+        {% if user.is_staff %}
+        <div class="col-md-auto">
+          <div style = "padding: 0px 5px"> 
+            <button type="button" class="btn btn-outline-primary">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-plus-square" viewBox="0 0 16 16">
+                <path d="M14 1a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h12zM2 0a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2H2z"/>
+                <path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4z"/>
+              </svg>
+              <a class="text-decoration-none text-reset"
+              href="{% url 'modules:create_module' plc_id %}">Добавить</a></button>
+          </div>
+        </div>
+        <div class="col-md-auto">
+          <div style = "padding: 0px 5px">
+            <button type="button" class="btn btn-outline-primary" id="btn_download">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-box-arrow-in-down" viewBox="0 0 16 16">
+                <path fill-rule="evenodd" d="M3.5 6a.5.5 0 0 0-.5.5v8a.5.5 0 0 0 .5.5h9a.5.5 0 0 0 .5-.5v-8a.5.5 0 0 0-.5-.5h-2a.5.5 0 0 1 0-1h2A1.5 1.5 0 0 1 14 6.5v8a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 2 14.5v-8A1.5 1.5 0 0 1 3.5 5h2a.5.5 0 0 1 0 1h-2z"/>
+                <path fill-rule="evenodd" d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/>
+              </svg>
+              <a class="text-decoration-none text-reset"
+              href="{% url 'modules:download_modules' plc_id %}?min=1&max=999999999&action=download">Загрузить в ПЛК</a></button>
+          </div>
+        </div>
+        {% endif %}
+        <div class="col-md-auto">
+          <div style = "padding: 0px 5px">
+            <div style="padding: 5px 5px">
+              Прочитано:{{ object_list.count }}
+            </div>
+          </div>
+        </div>
+
+    <div class="col-md-auto">
+    {% comment %} <div class="progress not-visible" style="width: 20rem; padding: 0px 5px" id="progress_bar"> {% endcomment %}
+    {% comment %} <div class="progress not-visible" style="width: 20rem" id="progress_bar">      
+      <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 10%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+    </div> {% endcomment %}
+
+      <div class="progress not-visible" style="width: 20rem" id="progress_bar" role="progressbar" aria-valuemin="0" aria-valuemax="100">
+        <div class="progress-bar progress-bar-striped" style="width: 10%">1%</div>
+    </div>
+
+    {% comment %} <button type="submit" class="btn btn-primary" style="border-radius:0px">Применить</button> {% endcomment %}
+    </div>
+  {% comment %} <div class="container d-flex flex-wrap" style= "background-color:lightgray;padding: 5px 5px">
+    <button type="button" class="btn btn-outline-primary" >
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-box-arrow-in-down" viewBox="0 0 16 16">
+        <path fill-rule="evenodd" d="M3.5 6a.5.5 0 0 0-.5.5v8a.5.5 0 0 0 .5.5h9a.5.5 0 0 0 .5-.5v-8a.5.5 0 0 0-.5-.5h-2a.5.5 0 0 1 0-1h2A1.5 1.5 0 0 1 14 6.5v8a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 2 14.5v-8A1.5 1.5 0 0 1 3.5 5h2a.5.5 0 0 1 0 1h-2z"/>
+        <path fill-rule="evenodd" d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/>
+      </svg>
+      <div id="btn_edit">
+      </div>
+      {% comment %} <a class="text-decoration-none text-reset" {% endcomment %}
+      {% comment %} href="{% url 'modules:download_modules' plc_id %}">Загрузить в ПЛК</a></button> {% endcomment %}
+      {% comment %} <a href="{% url 'modules:module_edit' plc_id mdl %}"></a>{% endcomment %}{% comment %}Редактировать 
+    </button>
+  </div> {% endcomment %}
+  
+  {% comment %} <br> {% endcomment %}
+</div>
+</div>
+</div>
+</form>
+{% comment %} <button type="submit" class="btn btn-outline-primary" id="btn_download2">Загрузить</button> {% endcomment %}
+  <script>
+
+    function updateAction(button) {
+      const plcSelector = document.getElementById('plc_selector').value;
+      const currentUrl = "{% url 'modules:module_by_plc_filter' plc_id=0 %}".replace("0", plcSelector);
+      button.setAttribute('formaction', currentUrl);
+    }
+
+
+    var row_obj_index = 0;
+    var row_tbl = {}
+    
+
+
+
+    const pb = document.getElementById('progress_bar');
+    $("#btn_download").on('click', function (e){
+      e.preventDefault();
+      pb.classList.remove("not-visible");
+      $.ajax({
+          url: "{% url 'modules:download_modules' plc_id%}?min=1&max=999999999&action=download",          
+          //headers: {'X-CSRFToken': csrftoken},
+          //data: {'search_input': search_input},
+          type: "GET",
+          //dataType: 'html',
+          success: function (data) {
+              if (data) {
+                  //console.log(data);
+                  console.log('выполнился success'); 
+                  if (data.error_back.length > 0)
+                  {
+                    var messages = ['При загрузке возникли ошибки:\r\n\r\n:'];
+                  //if (data.error_back == true)  
+                  //{
+                    //alert('выполнился success');
+                    console.log(data.error_back)
+                    //alert(data.error_back);                    
+                    for (var x=0; x<data.error_back.length; x++)
+                    {
+                      console.log(data.error_back[x].error_num)
+                      /*messages.push(data.error_back[x].error_num + ', ' + data.error_back[x].index_num)*//
+                      messages.push(data.error_back[x].index_num + ', ' + data.error_back[x].error_num + ', ' + data.error_back[x].param_num + '\r\n\r\n')
+                    }
+                    alert(messages);
+                  }
+                  else
+                  {alert('Модули успешно загружены в ПЛК');} 
+                  //}             
+                  // Add the http response to element
+                  //target_element.html(data);
+              }
+          }
+      });
+      const intervalLength = 1000;
+      const interval = setInterval(() => {
+        $.ajax({
+          type: 'GET',
+          url: "{% url 'modules:check_state' %}",
+    
+          success:function(response){
+              // Do visualization stuff then check if complete
+              console.log(response.progress);
+/*              pb.innerHTML = '<div class="progress-bar progress-bar-striped" role="progressbar" style="width: ' + response.progress + '%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">' + response.progress + '%</div>'*/
+/*              pb.innerHTML = '<div class="progress-bar progress-bar-striped" role="progressbar" style="width: ' + response.progress + '%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">' + response.progress + '%</div>'              */
+
+              pb.innerHTML = '<div class="progress-bar progress-bar-striped" style="width: ' + response.progress + '%">' + response.progress + '%</div>'
+                              
+              if (response.progress >= 100) {
+                  pb.classList.add("not-visible");
+                  /*pb.innerHTML = '<div class="progress-bar progress-bar-striped" role="progressbar" style="width: 2%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">2%</div>'*/
+                  pb.innerHTML = '<div class="progress-bar progress-bar-striped" style="width: 1%"></div>'
+                  
+                  //pb.aria-valuenow = response.progress * 10
+                  clearInterval(interval);
+                  console.log('Finished');
+              }
+          }
+      });
+    }, intervalLength);
+  })
+
+
+
+  function GetElement(id){
+    const elmnt = document.getElementById(id);
+    const btn_edit = document.getElementById('btn_edit');
+    console.log('id: ' + id)
+    elmnt.classList.add("tr-active");
+    /*for (const key in row_tbl) {
+    
+      if (row_tbl.hasOwnProperty(key)) {
+        if (key != id){
+          var elmnt_uncheck = document.getElementById(key);
+          elmnt_uncheck.classList.remove("tr-active");
+          row_tbl[key] = false;
+        }
+      }
+    }*/
+    /*
+    if (row_tbl[id] == true)
+        {
+          elmnt.classList.remove("tr-active");
+          row_tbl[id] = false;
+          console.log(id);
+        }
+      else
+        {
+          elmnt.classList.add("tr-active");
+          row_tbl[id] = true;
+        }  */
+  };
+  
+
+  </script>  
+
+{% endblock %}
+{% block content %}
+
+<table>
+  <thead>
+    <tr>
+      <th>Индекс</th>
+      <th>Имя</th>
+      <th>Описание</th>
+      <th>Контроллер</th>
+      <th>Изменить</th>
+      <th>Удалить</th>
+    </tr>
+      <tbody>
+      {% for module in page_obj %}
+          {% include "modules/module_card.html" %}
+      {% endfor %}
+      </tbody>  
+  </thead>
+</table>
+
+{% endblock %}

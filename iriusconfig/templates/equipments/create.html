@@ -1,0 +1,486 @@
+{% extends "base.html" %}
+{% load django_bootstrap5 %}
+
+{% block title %}
+  {% if '/edit/' in request.path %}
+    Редактирование
+  {% elif "/delete/" in request.path %}
+    Удаление
+  {% else %}
+    Добавление
+  {% endif %}
+{% endblock %}
+{% block content %}
+  <div class="col d-flex justify-content-center">
+    {% comment %} <div class="card" style="width: 100rem;"> {% endcomment %}
+
+        {% if '/edit/' in request.path %}
+        <div class="card" style="width: 100rem;">
+          <div class="card-header">
+          Редактирование
+        {% elif '/delete/' in request.path %}
+        <div class="card" style="width: 20rem;">
+          <div class="card-header">
+          Удаление
+        {% else %}
+        <div class="card" style="width: 100rem;">
+          <div class="card-header">
+          Добавление
+        {% endif %}
+      </div>
+
+
+
+          {% if '/delete/' in request.path %}
+          {% comment %} <div class="card-body"> {% endcomment %}
+          <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            {% bootstrap_form form %}
+            <div>
+              <p>
+                Подтвердите, пожалуйста, удаление оборудования: 
+              </p>
+            <p>
+              <b>Контроллер:</b> &nbsp; {{ object.n_controller.c_desc_controller }}
+            </p>
+            <p>
+              <b>Имя:</b> &nbsp; {{ object.c_name_equipment }} 
+            </p>
+            <p>
+              <b>Описание:</b> &nbsp; {{ object.c_desc_equipment }}
+            </p>
+
+            </div>
+            <br>
+          {% else %}
+            <style>
+              .not-visible{display: none;}
+            </style>
+          <form method="post" enctype="multipart/form-data">
+           {% comment %} autocomplete="off"> {% endcomment %}
+            {% csrf_token %}
+            {% include 'equipments/navigation.html' %}
+
+            <div class="row row-cols-1 row-cols-md-2 g-4" id="parent_content" name="parent_content">
+              {% for item_key, item_values in form.base_fields_by_group.items %}
+                <div class="col">
+                  <div class="card">
+                    <div class="card-body">
+                      <h5 class="card-title">{{ item_key }}</h5>
+                      <ul class="list-group list-group-flush">
+                        <li class="list-group-item list-group-item-secondary" aria-disabled="true">
+                        </li>
+                          {% for item in item_values %}
+                            {% for item_base_fields_key, item_base_fields_values in form.base_fields.items %}
+                              {% if item_base_fields_key == item %}
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                  {% if item_base_fields_key == 'n_type_id' or item_base_fields_key == 'n_controller' %}
+                                    {{ item_base_fields_values.label }}:&nbsp<select name={{ item_base_fields_key }} id={{ item_base_fields_key }} class="form-select selcls" arial-label="Default select" size="sm" style="padding: 0px 5px">
+                                      <option value="select_item" {% if item_base_fields_values.initial == None %}selected{%endif%}>Не выбран</option>                                
+                                      {% if item_base_fields_key == 'n_type_id' %}
+                                        {% for item_type in form.equipment_types %}
+                                          <option value={{ item_type.id }} {% if item_base_fields_values.initial == item_type.id %}selected{%endif%}>{{ item_type.c_type_desc }}</option>
+                                        {% endfor %}
+                                      {% else %}
+                                        {% for item_plc in form.list_plc %}
+                                          <option value={{ item_plc.id }} {% if item_base_fields_values.initial == item_plc.id %}selected{%endif%}>{{ item_plc.c_name_controller }}</option>
+                                        {% endfor %} 
+                                      {% endif %}
+                                    </select>
+                                  {% elif item_base_fields_key == 'b_masked' %}
+                                    {{ item_base_fields_values.label}}:<input name={{ item_base_fields_key }} type={{ item_base_fields_values.widget.input_type }} class="form-check-label" {% if item_base_fields_values.initial == True %}checked{%endif%}/>                                    
+                                  {% else %}
+                                      {{ item_base_fields_values.label }}:&nbsp
+                                      <input name={{ item_base_fields_key }} type={{ item_base_fields_values.widget.input_type }} class="form-control" placeholder="" value="{% if item_base_fields_values.initial != None %}{{item_base_fields_values.initial}}{%else%}{%endif%}" {% if item_base_fields_key == 'n_equipment_index' and not form.OBJ_NEW%}readonly="readonly"{%else%}{%endif%} />
+                                  {% endif %}
+                              {% endif %}
+                                </li>
+                            {% endfor %}
+                          {% endfor %}
+                      </ul>              
+                    </div>
+                  </div>
+                </div>
+                        
+              {% endfor %}
+              {% include "equipments/create_fields_by_group.html" %}
+            </div>
+            {% comment %} {% bootstrap_form form %} {% endcomment %}
+          
+          <div class="row row-cols-1 row-cols-md-2 g-4 not-visible" id="equipment_content">
+            {% include 'equipments/create_role_fields_variable.html' %}
+            {% include 'equipments/create_role_fields_equipment.html' %}
+            <div id="variable_pid" class="not-visible">
+              {% include "equipments/create_role_fields_variable_pid.html" %}
+            </div>
+            <div id="status_word" class="not-visible">
+              {% include "equipments/create_fields_sw.html" %}
+            </div>
+            <div id="control_word" class="not-visible">
+              {% include "equipments/create_fields_cw.html" %}
+            </div>
+
+          </div>
+          <div id="ats_fields" class="not-visible">
+            {% include "equipments/create_ats_add_fields.html" %}
+          </div>
+          <div id="pid_fields" class="not-visible">
+            {% include "equipments/create_pid_add_fields.html" %}
+          </div>
+          <div id="seq_fields" class="not-visible">
+            {% include "equipments/create_seq_add_fields.html" %}
+          </div>
+          <div class="row row-cols-1 row-cols-md-2 g-4 not-visible" id="seq_steps">
+            {% include 'equipments/create_seq_start_steps.html' %}
+            {% include 'equipments/create_seq_quick_start_steps.html' %}
+            {% include 'equipments/create_seq_stop_steps.html' %}
+            {% include 'equipments/create_seq_emergency_stop_steps.html' %}
+           </div>
+          {% endif %}
+
+          {% comment %} {% if '/edit/' in request.path or '/create/' in request.path%}
+            {% if '/edit/' in request.path %}
+              <div>
+               <button type="button" class="btn btn-outline-primary"><a class="text-decoration-none text-reset"
+                href="{% url 'equipments:equipment_edit' object.n_controller_id form.MOVEMENT_ID.prev %}">Предыдущий</a></button>
+
+                <button type="button" class="btn btn-outline-primary"><a class="text-decoration-none text-reset"
+                href="{% url 'equipments:equipment_edit' object.n_controller_id form.MOVEMENT_ID.next %}">Следующий</a></button>
+
+                {% url 'equipments:equipment_by_plc' object.n_controller_id as cancel_url %}
+                {% bootstrap_button button_type="link" href=cancel_url content="Отмена" %}    
+              </div>
+              <br>
+            {% endif %}
+            {% bootstrap_button button_type="submit" content="Сохранить в БД" %}
+            <input name="download_to_plc" type="checkbox" class="form-check-label" />Сохранить в ПЛК
+            {% if '/edit/' not in request.path %}
+
+            {% url 'equipments:equipment_by_plc' object.n_controller_id as cancel_url %}
+            {% bootstrap_button button_type="link" href=cancel_url content="Отмена" %}   
+            {% endif %}
+          {% elif '/delete/' in request.path %}
+           {% bootstrap_button button_type="submit" content="Удалить" %}
+           {% url 'equipments:equipment_by_plc' object.n_controller_id as cancel_url %}
+
+           {% bootstrap_button button_type="link" href=cancel_url content="Отмена" %}  
+          {% endif %}
+
+          {% if '/edit/' in request.path %}
+          <div>
+            <br>
+            <button type="button" class="btn btn-outline-primary" id="btn_upload">Получить из ПЛК</button>    
+          </div>
+          {% endif %} {% endcomment %}
+          {% if '/edit/' in request.path or '/create/' in request.path%}
+          {% if '/edit/' in request.path %}
+      
+              <button type="button" class="btn btn-outline-primary"><a class="text-decoration-none text-reset"
+              href="{% url 'equipments:equipment_edit' object.n_controller_id form.MOVEMENT_ID.prev %}"> << </a></button>                
+              <input name="equipment_index_below" id="equipment_index_below_id" style="width: 40px;text-align: center" type="text" value= {{ object.n_equipment_index }} >
+              <button type="button" class="btn btn-outline-primary"><a class="text-decoration-none text-reset"
+                  href="{% url 'equipments:equipment_edit' object.n_controller_id form.MOVEMENT_ID.next %}"> >> </a></button>
+                  {% url 'equipments:equipment_by_plc' object.n_controller_id as cancel_url %}
+                  {% bootstrap_button button_type="link" href=cancel_url content="Отмена" %}
+      
+          {% endif %}
+          {% bootstrap_button button_type="submit" content="Сохранить в БД" %}
+          <input name="download_to_plc" type="checkbox" style="width: 20px;height: 20px;" class="form-check-label" /> Сохранить в ПЛК
+          {% if '/edit/' not in request.path %}
+              {% url 'equipments:equipment_by_plc' object.n_controller_id as cancel_url %}
+              {% bootstrap_button button_type="link" href=cancel_url content="Отмена" %}
+          {% endif %}
+      
+      {% elif '/delete/' in request.path %}
+          {% bootstrap_button button_type="submit" content="Удалить" %}
+          {% url 'equipments:equipment_by_plc' object.n_controller_id as cancel_url %}
+          {% bootstrap_button button_type="link" href=cancel_url content="Отмена" %}
+      
+      {% endif %}
+      
+      {% if '/edit/' in request.path %}
+      
+      <button type="button" class="btn btn-outline-primary" id="btn_upload">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"><path fill="currentColor" d="M18 9h-2c-.6 0-1 .4-1 1s.4 1 1 1h2c.6 0 1 .4 1 1v7c0 .6-.4 1-1 1H6c-.6 0-1-.4-1-1v-7c0-.6.4-1 1-1h2c.6 0 1-.4 1-1s-.4-1-1-1H6c-1.7 0-3 1.3-3 3v7c0 1.7 1.3 3 3 3h12c1.7 0 3-1.3 3-3v-7c0-1.7-1.3-3-3-3zM9.7 6.7L11 5.4V17c0 .6.4 1 1 1s1-.4 1-1V5.4l1.3 1.3c.2.2.4.3.7.3c.3 0 .5-.1.7-.3c.4-.4.4-1 0-1.4l-3-3c-.4-.4-1-.4-1.4 0l-3 3c-.4.4-.4 1 0 1.4c.4.4 1 .4 1.4 0z"/></svg>
+      </button>    
+      
+      {% endif %}
+
+    </div>
+    
+  </div>
+
+  {% comment %} <script type="text/javascript"> 
+    window.onload = function() {
+       if (window.jQuery) {
+          alert('jQuery is loaded');
+       } else {
+          alert('jQuery is not loaded');
+       }
+    }
+</script> {% endcomment %}
+
+<script>
+    $(document).ready(function() {
+
+      var mes_len = {{ view.kwargs.RETURN_BLOCK_FROM_PLC|length }}
+      console.log(mes_len)
+      if (mes_len > 0) {
+      /*var mes_response = [
+          {% for item in view.kwargs.RETURN_BLOCK_FROM_PLC %}
+          '{{ item.error_num }}, {{ item.index_num }}, {{item.param_num}}',
+          {% endfor %}
+          ]
+          alert(mes_response)
+          console.log(mes_response)  */
+          var mes_response = [];
+
+          {% for item in view.kwargs.RETURN_BLOCK_FROM_PLC %}
+
+            if ('{{ item.error_num }}') {
+              mes_response.push('{{ item.error_num }}');
+            }
+            if ('{{ item.index_num }}') {
+              mes_response.push('  {{ item.index_num }}');
+            }
+            if ('{{ item.param_num }}') {
+              mes_response.push('  {{ item.param_num }}');
+            }
+          {% endfor %}   
+          alert(mes_response)
+          console.log(mes_response)           
+      }
+
+    var equipment_content = document.getElementById('equipment_content');
+          console.log('start')
+          ShowRoles();
+
+//////////////////
+
+    $('#n_type_id').on('change', function(){
+      ShowRoles();
+
+      //console.log($('#n_type_id option:selected').text())
+      
+  });
+
+  function ShowRoles(){
+    //equipment_content.value != 'Не выбран' ? equipment_content.classList.remove("not-visible") : equipment_content.classList.add("not-visible")
+    if ($('#n_type_id option:selected').text() != 'Не выбран')
+    {
+    console.log('ShowRoles 1')
+    const status_word=document.getElementById("status_word");
+    const control_word=document.getElementById("control_word");
+    const variable_pid=document.getElementById("variable_pid");
+    const pid_fields=document.getElementById("pid_fields");
+    const seq_fields=document.getElementById("seq_fields");
+    const seq_steps=document.getElementById("seq_steps");
+    const ats_fields=document.getElementById("ats_fields");
+
+    console.log('ShowRoles 2')
+    console.log($('#n_type_id option:selected').text())
+      if ($('#n_type_id option:selected').text() == 'Задвижка/Клапан с ЧРП' ||
+          $('#n_type_id option:selected').text() == 'Электропривод с ЧРП')
+          {
+            console.log('ShowRoles ЧРП')
+            status_word.classList.remove("not-visible");
+            control_word.classList.remove("not-visible");
+          }
+          else
+          {
+            console.log('ShowRoles not ЧРП')
+            status_word.classList.add("not-visible");
+            control_word.classList.add("not-visible");
+          }
+          console.log('ShowRoles 3')
+        if ($('#n_type_id option:selected').text() == 'Аналоговый ПИД-регулятор' ||
+        $('#n_type_id option:selected').text() == 'ПИД-регулятор - ШИМ' ||
+        $('#n_type_id option:selected').text() == 'Пороговый регулятор')
+        {
+          console.log('ShowRoles ПИД')
+          //equipment_content.classList.add("not-visible");
+          equipment_content.classList.remove("not-visible");            
+          pid_fields.classList.remove("not-visible");
+          variable_pid.classList.remove("not-visible"); 
+        }
+        else
+        {
+          console.log('ShowRoles not ПИД')
+          equipment_content.classList.remove("not-visible");
+          pid_fields.classList.add("not-visible");
+          variable_pid.classList.add("not-visible"); 
+        }
+        if ($('#n_type_id option:selected').text() == 'Последовательность')
+        {
+          console.log('ShowRoles Последовательность')
+          seq_fields.classList.remove("not-visible");
+          seq_steps.classList.remove("not-visible");
+          //equipment_content.classList.add("not-visible");
+        }
+        else
+        {
+          console.log('ShowRoles not Последовательность')
+          seq_fields.classList.add("not-visible");
+          seq_steps.classList.add("not-visible");
+          //equipment_content.classList.remove("not-visible");
+        }
+        if ($('#n_type_id option:selected').text() == 'АВР')
+        {
+          console.log('ShowRoles АВР')
+          ats_fields.classList.remove("not-visible");
+        }
+        else
+        {
+          console.log('ShowRoles not АВР')
+          ats_fields.classList.add("not-visible");
+
+        }        
+
+    }
+    else
+    {
+      console.log('ShowRoles none')
+      //equipment_content.classList.add("not-visible");
+      status_word.classList.add("not-visible");
+      control_word.classList.add("not-visible");
+    }
+    console.log('ShowRoles End')
+  };
+}); 
+{% comment %} 
+    //const equipment_content = document.getElementById('equipment_content');
+    //const parent_content_type = document.getElementById('parent_content');
+    //$(document).ready(function() {
+    //$('#n_type_id').change(function (e){
+  //  $(document).on('change mouseover mouseout click', 'form-select selcls', function (e){ 
+      //e.preventDefault();
+    // console.log('Changed')
+      //const sel_equipment_type = document.getElementById('n_type_id');
+      //console.log(equipment_content)
+      //pb.classList.remove("not-visible");
+      //equipment_content.innerHTML = '<li class="list-group-item list-group-item-secondary">' + sel_equipment_type.options[sel_equipment_type.selectedIndex].text + '</li>'
+      //equipment_content.innerHTML = '{% include "equipments/create_role_fields_variable.html" %}'
+      
+  //}) 
+//});{% endcomment %}
+{% comment %} $(document).on('change mouseover mouseout click', 'form-control', function (){ 
+  console.log('Changed')
+}); {% endcomment %}
+{% comment %} $(document).on('click', 'form-control', function (){ 
+  console.log('Changed')
+}); {% endcomment %}
+
+    //const equipment_content = document.getElementById('bbb');
+
+
+    $("#btn_download").on('click', function (e){
+      e.preventDefault();
+      $.ajax({
+          url: "{% url 'equipments:download_equipments' view.kwargs.plc_id %}?min={{object.id}}&max={{object.id}}&action=download",     
+          //url: "{% url 'modules:check_state' %}",
+          //headers: {'X-CSRFToken': csrftoken},
+          //data: {'search_input': search_input},
+          type: "GET",
+          //dataType: 'html',
+          success: function (data) {
+              if (data) {
+                  //console.log(data);
+                  console.log('выполнился success');
+                  if (data.error_back.length > 0)
+                  {
+                    var messages = ['При загрузке возникли ошибки:\r\n\r\n'];
+                  //if (data.error_back == true)  
+                  //{
+                    //alert('выполнился success');
+                    console.log(data.error_back)
+                    //alert(data.error_back);                    
+                    for (var x=0; x<data.error_back.length; x++)
+                    {
+                      console.log(data.error_back[x].error_num)
+                      messages.push(data.error_back[x].error_num + ', ' + data.error_back[x].index_num + '\r\n\r\n')
+                    }
+                    alert(messages);
+                  }
+                  else
+                  {alert('Оборудование успешно загружено в ПЛК');}
+                  //}             
+                  // Add the http response to element
+                  //target_element.html(data);
+              }
+          }
+      });
+    });
+    $("#btn_upload").on('click', function (e){
+      e.preventDefault();
+      let btn = $(this);
+      btn.attr("disabled", true);
+      /*$(this).prop("disabled",true);*/
+      $.ajax({
+
+          url: "{% url 'equipments:upload_equipments' view.kwargs.plc_id %}?min={{object.id}}&max={{object.id}}&action=upload",     
+
+          type: "GET",
+          //dataType: 'html',
+          success: function (data) {
+              btn.attr("disabled", false);
+              if (data) {
+                  console.log(data);
+                  console.log('выполнился success');
+                  if (data.return_block.length > 0)
+                  {
+                    /*typeof value == 'undefined'*/
+                    /*if (typeof data.return_block[0]["error_num"] === undefined)*/
+                    if (typeof data.return_block[0]["error_num"] == 'undefined')
+                    {
+                      var messages = ['Данные в БД и ПЛК не соответствуют по следующим позициям:\r\n\r\n'];
+                      for (var x=0; x<data.return_block.length; x++)
+                      {
+                        console.log(data.return_block[x])
+                        messages.push(data.return_block[x] + '\r\n\r\n')
+                      }
+                    }
+                      else
+                    {
+                      var messages = ['При загрузке возникли ошибки:\r\n\r\n'];
+                      for (var x=0; x<data.return_block.length; x++)
+                      {
+                        console.log(data.return_block[x])
+                        messages.push(data.return_block[x].error_num + ', ' + data.return_block[x].index_num + '\r\n\r\n')
+                      }
+                    }
+                  //if (data.error_back == true)  
+                  //{
+                    //alert('выполнился success');
+                    console.log(data.return_block)
+                    //alert(data.error_back);                    
+
+                    alert(messages);
+                  }
+                  else
+                  {alert('Данные в БД и ПЛК идентичны');}
+                  //}             
+                  // Add the http response to element
+                  //target_element.html(data);
+                  
+              }
+              
+          }
+      });
+    });
+  </script>  
+  {% comment %} <script>
+    const equipment_content = document.getElementById('equipment_content');
+    const sel_equipment_type = document.getElementById('n_type_id');
+    $("#n_type_id").on('change', function (e){
+      e.preventDefault();
+      //console.log(equipment_content)
+      //pb.classList.remove("not-visible");
+      equipment_content.innerHTML = '<li class="list-group-item list-group-item-secondary">' + sel_equipment_type.options[sel_equipment_type.selectedIndex].text + '</li>'
+      //equipment_content.innerHTML = '{% include "equipments/create_role_fields_variable.html" %}'
+      
+  })
+  </script>  {% endcomment %}
+
+
+
+{% endblock %}

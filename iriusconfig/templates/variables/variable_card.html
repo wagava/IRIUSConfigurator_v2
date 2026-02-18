@@ -1,0 +1,65 @@
+{% load formatted_tags %}
+<div class="container">
+    {% comment %} <div class="card-body"> {% endcomment %}
+      
+        <tr>
+          <td><strong>{{ variable.n_variable_index }}</strong></td>
+          <td>{{ variable.c_name_variable }}</td>
+          <td>{{ variable.c_desc_variable }}</td>
+          <td>{{ variable.c_signal_ident }}</td>
+          <td>{% if variable.stationid != None%}{{variable.stationid|formatted_int}}{%else%}{%endif%}</td>
+          <td>{% if variable.slotid != None%}{{ variable.slotid|formatted_int }}{%else%}{%endif%}</td>
+          <td>{% if variable.n_module_channel != 0%}{{ variable.n_module_channel }}{%else%}{%endif%}</td>
+          <td>
+            {% if user.is_staff %}
+            <a href="{% url 'variables:variable_edit' plc_id variable.id %}" class="card-link">Редактировать</a>
+            {% endif %}
+          </td>
+          <td>
+            {% if user.is_staff %}
+            <a href="{% url 'variables:variable_delete' plc_id variable.id %}" class="card-link">Удалить</a>
+            {% endif %}
+          </td>
+        </tr>
+{% comment %} 
+        <div class="container text-center">
+          <div class="row justify-content-md-left">
+            <div class="col-1">
+              <div style="align=left"> 
+              {{ variable.n_variable_index }}
+            </div>
+            </div>
+            <div class="col-2">
+              <div style="align=left"> 
+              {{ variable.c_name_variable }}
+            </div>
+            </div>
+            <div class="col-6">
+              <div style="align=left"> 
+                {{ variable.c_desc_variable }}
+              </div>
+            </div>
+            <div class="col-1">
+              {{ variable.n_controller }}
+            </div>
+            <div class="col-1">
+              <a href="{% url 'variables:variable_edit' plc_id variable.id %}" class="card-link">Редактировать</a>
+            </div>
+            <div class="col-1">
+              <div style="align=right"> 
+              <a href="{% url 'variables:variable_delete' plc_id variable.id %}" class="card-link">Удалить</a>
+            </div>
+            </div>
+          </div>
+        </div> {% endcomment %}
+      {% comment %} <table style="border: 1px solid gray;background-color: #C1E7FD;">
+        <tr><td style="width:5rem"><h5 class="card-title">{{ variable.n_variable_index }} </h5></td>
+          <td style="width:10rem">{{ variable.c_name_variable }}</td>
+          <td style="width:50rem">{{ variable.c_desc_variable }}</td>
+          <td style="width:5rem">{{ variable.n_controller }}</td>
+          <td style="width:10rem"><a href="{% url 'variables:variable_edit' plc_id variable.id %}" class="card-link">Редактировать</a></td>
+          <td style="width:10rem"><a href="{% url 'variables:variable_delete' plc_id variable.id %}" class="card-link">Удалить</a></td></tr> 
+      </table> {% endcomment %}
+      
+    {% comment %} </div> {% endcomment %}
+  </div>

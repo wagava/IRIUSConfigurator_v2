@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% load static %}
+{% block script %}
+    <link rel="stylesheet" href="{% static 'django_pam/css/auth.css' %}">
+    <!-- <link rel="stylesheet" href="{% static '<your css file>' %}"> -->
+{% endblock %}
+{% block content %}{% include "django_pam/accounts/_logout.html" %}{% endblock %}

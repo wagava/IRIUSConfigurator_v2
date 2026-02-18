@@ -1,0 +1,38 @@
+{% load formatted_tags %}
+{% for key, values in form.attr_fields_by_group.items %}
+<div class="col">
+    <div class="card">
+        <div class="card-body">
+            <h5 class="card-title">{{ key }}</h5>
+            {% comment %} <p class="card-text">Данные, используемые в системе. Обязательны для заполнения.</p> {% endcomment %}
+            <ul class="list-group list-group-flush">
+            <li class="list-group-item list-group-item-secondary" aria-disabled="true">
+            </li>
+                {% for item in values %}
+                    {% if item.n_attribute_type == 128 or item.n_attribute_type == 130 %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                        {{ item.c_display_attribute}}:
+                        {% if item.n_attribute_type == 128 %}
+                            <input name=attr_{{item.c_name_attribute}} type={% if item.n_attribute_type == 128 or item.n_attribute_type == 130%}"number"{%else%}"text"{%endif%} class="form-control" placeholder="" step="1" value={% if item.initial != None %}{{item.initial|formatted_int}}{%else%}0{%endif%} />
+                        {% elif item.n_attribute_type == 130 %}
+                            <input name=attrf_{{item.c_name_attribute}} type={% if item.n_attribute_type == 128 or item.n_attribute_type == 130%}"number"{%else%}"text"{%endif%} class="form-control" placeholder="" step="any" value={% if item.initial != None %}{{item.initial|formatted_float}}{%else%}0.0{%endif%} />
+                        {% endif %}
+                        </li>
+                    {% elif item.n_attribute_type == 129 %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <label class="form-check-label" >
+            
+                        {% if item.n_parameter_bit < 10 %}
+                            <input type="checkbox" name=attrb_0{{ item.n_parameter_bit }}{{ item.c_name_attribute }} id=id_attrb_0{{ item.n_parameter_bit }}{{ item.c_name_attribute }} class="form-check-input" {% if item.initial == True %}checked{%endif%}/> &nbsp &nbsp {{ item.c_display_attribute }}                     
+                        {% else %}
+                            <input type="checkbox" name=attrb_{{ item.n_parameter_bit }}{{ item.c_name_attribute }} id=id_attrb_{{ item.n_parameter_bit }}{{ item.c_name_attribute }} class="form-check-input"  {% if item.initial == True %}checked{%endif%}/> &nbsp &nbsp {{ item.c_display_attribute }}
+                        {%endif%}
+                        </label> 
+                        </li>
+                    {% endif %}
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+</div>
+{% endfor %}

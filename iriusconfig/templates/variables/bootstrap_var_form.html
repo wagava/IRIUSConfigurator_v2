@@ -1,0 +1,185 @@
+{% load django_bootstrap5 %}
+<div class="col d-flex justify-content-center">
+    {% comment %} <div class="card" style="width: 100rem;"> {% endcomment %}
+    <div class="card" style="width: 100rem;">
+      <div class="card-header">
+        {% if '/edit/' in request.path %}
+          Редактирование
+        {% elif '/delete/' in request.path %}
+          Удаление
+        {% else %}
+          Добавление
+        {% endif %}
+      </div>
+      <div class="card-body">
+        <form method="post" enctype="multipart/form-data">
+          {% csrf_token %}
+          {% if '/delete/' in request.path %}
+            {% bootstrap_form form %}
+            <div>
+              <p>
+                Подтвердите, пожалуйста, удаление переменной: 
+              </p>
+            <p>
+              <b>Контроллер:</b> &nbsp; {{ object.n_controller.c_desc_controller }}
+            </p>
+            <p>
+              <b>Имя:</b> &nbsp; {{ object.c_name_variable }} 
+            </p>
+            <p>
+              <b>Описание:</b> &nbsp; {{ object.c_desc_variable }}
+            </p>
+
+            </div>
+            <br>
+          {% else %}
+          {% comment %} {% bootstrap_form form %} {% endcomment %}
+          {% comment %} <form> {% endcomment %}
+            {% regroup form by field.group as field_groups %}
+            {% for field_group in field_groups %}
+            {%if field_group.grouper != None %}
+              {{field_group.grouper}}
+              {% for field in field_group.list %}
+                {{field}}
+              {% endfor %}
+              {% endif %}
+            {% endfor %}
+          <div class="row row-cols-1 row-cols-md-3 g-4">
+            <div class="col">
+              <div class="card">
+                <div class="card-body">
+                  <h5 class="card-title">Основные</h5>
+                  <ul class="list-group list-group-flush">
+                    <li class="list-group-item list-group-item-secondary" aria-disabled="true"></li>
+                  </ul>
+                  {% bootstrap_form form %}
+                </div>
+              </div>
+            </div>
+            {% for item_key, item_values in form.base_fields_by_group.items %}
+            <div class="col">
+              <div class="card">
+                <div class="card-body">
+                  <h5 class="card-title">{{ item_key }}</h5>
+                  {% comment %} <p class="card-text">Данные, используемые в системе. Обязательны для заполнения.</p> {% endcomment %}
+                  <ul class="list-group list-group-flush">
+                    <li class="list-group-item list-group-item-secondary" aria-disabled="true"></li>
+                    {% for item in item_values %}
+
+                  {% comment %} <li class="list-group-item d-flex justify-content-between align-items-center">
+                      Индекс переменной: <input type="number" class="form-control" placeholder="Индекс" style="width: 10rem;" value="-999"/>
+                    </li> {% endcomment %}
+                    {% for item_base_fields_key, item_base_fields_values in form.variable_fields_model.items %}
+                    
+                      {% if item_base_fields_key == item %}
+                      <li class="list-group-item d-flex justify-content-between align-items-center">
+                        {% if item_base_fields_key == 'n_module_id' %}
+                        {{ item_base_fields_values.field.verbose_name }}:&nbsp<select class="form-select selcls" name="selector" + {{ item_base_fields_key }} arial-label="Default select" size="sm" style="padding: 0px 5px">
+                            <option value="select_item" selected>Не выбран</option>
+                              {% for item_module in form.list_modules %}
+                                <option value={{ item_module.id }}>{{ item_module.c_name_module }}</option>
+                              {% endfor %}
+                          </select>
+                        {% elif item_base_fields_key == 'n_variable_type' %}
+                          {{ item_base_fields_values.field.verbose_name }}:&nbsp<select class="form-select selcls" name="selector" + {{ item_base_fields_key }} arial-label="Default select" size="sm" style="padding: 0px 5px">
+                            <option value="select_item" selected>Не выбран</option>
+                              {% for item_type in form.variable_types %}
+                                <option value={{ item_type.id }}>{{ item_type.c_type_desc }}</option>
+                              {% endfor %}
+                          </select>
+
+                        {% elif item_base_fields_key == 'n_variable_data_type' %}
+                          {{ item_base_fields_values.field.verbose_name }}:&nbsp<select class="form-select selcls" name="selector" + {{ item_base_fields_key }} arial-label="Default select" size="sm" style="padding: 0px 5px">
+                            <option value="select_item" selected>Не выбран</option>
+                              {% for item_data_type in form.variable_data_types %}
+                                <option value={{ item_data_type.id }}>{{ item_data_type.c_type_desc }}</option>
+                              {% endfor %}
+                          </select>
+                        {% else %}
+                          {% comment %} <li class="list-group-item d-flex justify-content-between align-items-center"> {% endcomment %}
+                            {{ item_base_fields_values.field.verbose_name }}:&nbsp
+                            <input type="text" class="form-control" placeholder="" value={% if item_base_fields_values.initial != None %}{{ item_base_fields_values.initial }}{%else%}1{%endif%}>
+                        {% endif %}
+                      {% endif %}
+                    </li>
+                    {% endfor %}
+
+                  {% endfor %}    
+                </ul>              
+                </div>
+              </div>
+            </div>
+            {% endfor %}
+
+          </div>
+          <br>
+
+            <div class="row row-cols-1 row-cols-md-3 g-4" style="float: left">
+            
+            {% for key, values in form.attr_fields_by_group.items %}
+              <div class="col">
+                <div class="card">
+                  <div class="card-body">
+                    <h5 class="card-title">{{ key }}</h5>
+                    {% comment %} <p class="card-text">Данные, используемые в системе. Обязательны для заполнения.</p> {% endcomment %}
+                    <ul class="list-group list-group-flush">
+                      <li class="list-group-item list-group-item-secondary" aria-disabled="true"></li>
+              {% for item in values %}
+                {% if item.n_attribute_type == 128 or item.n_attribute_type == 130 %}
+                  {% if item.c_name_attribute == "TypeID" or item.c_name_attribute == "DataTypeID"%}
+                  <li class="list-group-item d-flex justify-content-between align-items-center">
+                  {{item.c_display_attribute}}:&nbsp<select class="form-select selcls" name="selector" + {{ item.c_name_attribute }} arial-label="Default select" size="sm" style="padding: 0px 5px" >
+                    <option value="select_item" selected>Не выбран</option>
+                    {% if item.c_name_attribute == "TypeID"  %}
+                      {% for item_t in form.variable_types %}
+                        <option value= {{ item_t.id }}>{{ item_t.c_type_desc }}</option>
+                      {% endfor %}
+                    {% elif item.c_name_attribute == "DataTypeID" %}
+                    {% for item_t in form.variable_data_types %}
+                      <option value= {{ item_t.id }}>{{ item_t.c_type_desc }}</option>
+                    {% endfor %}
+                    {% endif %}
+                    </select>
+                  </li>
+                  {% else %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                      {{ item.c_display_attribute}}:
+                      <input type="text" class="form-control" placeholder="" value="dsdsdsdsds"/>
+                    </li>
+                  {% endif %}
+                {% elif item.n_attribute_type == 129 %}
+                  <li class="list-group-item d-flex justify-content-between align-items-center">
+                  {% comment %} <li class="list-group"> {% endcomment %}
+                    {% comment %} <input class="form-check-input" type="checkbox" id="flexSwitchCheckChecked" + {{ item.id}}>
+                    <label class="form-check-label" for="flexSwitchCheckChecked" + {{ item.id}}>{{ item.c_display_attribute}}</label> {% endcomment %}
+
+                    <label class="form-check-label" for="flexCheckDefault" + {{ item.id}} ") >
+                      <input class="form-check-input" type="checkbox" value="" id="flexCheckDefault" + {{ item.id}}"> &nbsp &nbsp {{ item.c_display_attribute}}                     
+                    </label> 
+                  </li>
+
+                {% endif %}
+              {% endfor %}
+                    </ul>                  
+                  </div>
+                </div>
+              </div>
+          {% endfor %}
+
+        </div>
+          {% endif %}
+      {% comment %} </form> {% endcomment %}
+        {% comment %} {% url 'variables:variable_create' 1 as create_url %} {% endcomment %}
+          {% if '/edit/' in request.path or '/create/' in request.path%}
+            {% bootstrap_button button_type="submit" content="Сохранить" %}
+            {% comment %} <button type="submit" class="btn btn-primary mb-3">Сохранить</button> {% endcomment %}
+            {% comment %} {% bootstrap_button button_type="link" href=create_url content="Сохранить" %} {% endcomment %}
+          {% elif '/delete/' in request.path %}
+           {% bootstrap_button button_type="submit" content="Удалить" %}
+          {% endif %}
+          {% url 'variables:variable_home' as cancel_url %}
+          {% bootstrap_button button_type="link" href=cancel_url content="Отмена" %}
+        </form>
+      </div>
+    </div>
+  </div>

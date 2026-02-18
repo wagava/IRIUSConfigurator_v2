@@ -1,0 +1,64 @@
+version: '3.8'
+
+volumes:
+  pg_data:
+  static:
+  media:
+  storage:
+
+services:
+
+  # iriusdb:
+  #   container_name: irius-db
+  #   image: postgres:15-alpine
+  #   expose:
+  #   - "5435" # Publishes 5433 to other containers but NOT to host machine
+  #   ports:
+  #   - "5435:5432"
+  #   env_file: ./.env
+  #   volumes:
+  #     - pg_data:/var/lib/postgresql@15/data
+  #     - ./db/IRIUSDB-20241120.sql:/docker-entrypoint-initdb.d/init.sql
+  #   # command: -p 5435
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
+  #     start_period: 30s    
+
+  iriusapp:
+    container_name: irius-config
+    build: ../
+    # image: infra-iriusapp
+    env_file: ./.env
+    # ports:
+    # - 7000:7000
+    # expose:
+    #   - "7000"
+    volumes:
+      - static:/app/static
+      - media:/app/media
+      - storage:/app/storage
+      - ./files/nsswitch.conf:/etc/nsswitch.conf
+      - ./files/common-auth:/etc/pam.d/common-auth
+      - ./files/common-auth:/etc/pam.d/system-auth
+      - /var/lib/sss/pipes:/var/lib/sss/pipes:rw      
+    # depends_on:
+    #   iriusdb:
+    #     condition: service_healthy
+    #     restart: true
+
+  nginx:
+    image: nginx:1.25.4-alpine
+    container_name: irius-nginx
+    restart: always
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./configs:/etc/nginx/conf.d:ro
+      - static:/static
+    depends_on:
+      iriusapp:
+        condition: service_started
+    ports:
+      - "80:80"     

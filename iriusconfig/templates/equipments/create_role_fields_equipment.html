@@ -1,0 +1,404 @@
+{% comment %} {% for key, values in form.attr_fields_by_group.items %} {% endcomment %}
+<div class="col">
+    <div class="card">
+        <div class="card-body">
+            <h5 class="card-title"> Роли оборудования </h5>
+            {% comment %} <p class="card-text">Данные, используемые в системе. Обязательны для заполнения.</p> {% endcomment %}
+            <ul class="list-group list-group-flush">
+            <li class="list-group-item list-group-item-secondary" aria-disabled="true">
+            </li>
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+                <div align="left">Роли</div> <div align="center">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Таймер</div> <div align="right">Оборудование&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+                    <span data-tooltip="up" aria-label="Маскирование">M</span>
+                  &nbsp;</div>
+            </li>
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+                1&nbsp<input name="eq_num_role1" id="id_eq_num_role1" type="tel" style="width:70px;" class="form-control" placeholder="" step="any" onkeydown="EqRolehandleEnter(event,1)"/>
+                <select name="eq_role1" id="id_eq_role1" class="form-select" arial-label="Default select">
+                    <option value="select_item" {% if not form.EQ_DATA_ROLES %}selected{%endif%}>Не выбран</option>                                
+                    {% for item_type in form.ROLES.equipment %}
+                        <option value={{ item_type.id }} {% if form.EQ_DATA_ROLES.0.n_role_id == item_type.id %}selected{% endif %}>{{ item_type.n_role_index }}.{{ item_type.c_role_desc }}</option>
+                    {% endfor %}
+                </select>
+                <input name="eq_timer1" id="id_eq_timer1" style="width:90px;" type="number" class="form-control" placeholder="" step="any" {% if form.EQ_DATA_ROLES != None %} value={{form.EQ_DATA_ROLES.0.n_timer }} {%endif%} />
+                <select name="eq_par1" id="id_eq_par1" class="form-select" arial-label="Default select">
+                    <option value="select_item" {% if not form.EQ_DATA_ROLES %}selected{%endif%}>Не выбран</option>                                
+                    {% for item_eq in form.DATA_ROLES.equipment %}
+                        <option value={{ item_eq.id }} {% if item_eq.id == form.EQ_DATA_ROLES.0.n_equipment_link_id %}selected{%endif%}>{{ item_eq.n_equipment_index }}: {{ item_eq.c_desc_equipment }}</option>
+                    {% endfor %}
+                </select>
+                <input name="eq_num_par1" id="id_eq_num_par1" type="tel" style="width:70px;" class="form-control" placeholder="" step="any" onkeydown="EqEqhandleEnter(event,1)"/>
+                &nbsp&nbsp<input name='eq_masked1' id="id_eq_masked1" type='checkbox' class="form-check-label" />&nbsp&nbsp                
+                {% comment %} <button type="button" id="button_del_eq" class="btn btn-secondary" disabled>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-dash" viewBox="0 0 16 16">
+                        <path d="M4 8a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7A.5.5 0 0 1 4 8z"/>
+                      </svg>
+                </button> {% endcomment %}
+            </li>
+            <div id="eq_new_items">
+                {% for i in form.RANGE_100 %}
+                    <div id="eq_new_items_{{i}}">
+                    </div>
+                {% endfor %}
+            </div>
+            <li class="list-group-item d-flex justify-content-between align-items-center" align="center">
+            <button type="button" id="button_add_eq" class="btn btn-primary">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-plus" viewBox="0 0 16 16">
+                    <path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4z"/>
+                  </svg>
+            </button>
+            <button type="button" id="button_del_eq" class="btn btn-primary" onclick="EqItemDelete()" disabled>
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-dash" viewBox="0 0 16 16">
+                    <path d="M4 8a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7A.5.5 0 0 1 4 8z"/>
+                  </svg>
+            </button>
+        </li>
+                {% comment %} {% for item in values %}
+                    {% if item.n_attribute_type == 128 or item.n_attribute_type == 130 %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                        {{ item.c_display_attribute}}:
+                        {% if item.n_attribute_type == 128 %}
+                            <input name=attr_{{item.c_name_attribute}} type={% if item.n_attribute_type == 128 or item.n_attribute_type == 130%}"number"{%else%}"text"{%endif%} class="form-control" placeholder="" step="0.01" value={% if item.initial != None %}{{item.initial}}{%else%}{%endif%} />
+                        {% elif item.n_attribute_type == 130 %}
+                            <input name=attrf_{{item.c_name_attribute}} type={% if item.n_attribute_type == 128 or item.n_attribute_type == 130%}"number"{%else%}"text"{%endif%} class="form-control" placeholder="" step="0.01" value={% if item.initial != None %}{{item.initial}}{%else%}{%endif%} />
+                        {% endif %}
+                        </li>
+                    {% elif item.n_attribute_type == 129 %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <label class="form-check-label" >
+            
+                        {% if item.n_parameter_bit < 10 %}
+                            <input type="checkbox" name=attrb_0{{ item.n_parameter_bit }}{{ item.c_name_attribute }} id=id_attrb_0{{ item.n_parameter_bit }}{{ item.c_name_attribute }} class="form-check-input" {% if item.initial == True %}checked{%endif%}/> &nbsp &nbsp {{ item.c_display_attribute }}                     
+                        {% else %}
+                            <input type="checkbox" name=attrb_{{ item.n_parameter_bit }}{{ item.c_name_attribute }} id=id_attrb_{{ item.n_parameter_bit }}{{ item.c_name_attribute }} class="form-check-input"  {% if item.initial == True %}checked{%endif%}/> &nbsp &nbsp {{ item.c_display_attribute }}
+                        {%endif%}
+                        </label> 
+                        </li>
+                    {% endif %}
+                {% endfor %} {% endcomment %}
+            </ul>
+        </div>
+    </div>
+</div>
+<script>
+    $(document).ready(function() {
+    //const equipment_content = document.getElementById('equipment_content');
+    eq_line_count = 1
+    /*eq_line_using = []
+
+    for (var x=0; x<100; x++)
+    {
+        eq_line_using[x] = false;
+
+    }*/
+
+    
+    var eq_data_roles_len = {{ form.EQ_DATA_ROLES|length }}
+    //console.log(typeof eq_data_roles_len);
+    //console.log(eq_data_roles_len);
+
+
+        if (eq_data_roles_len > 1)
+        {
+            AddEQRoles();
+        }
+
+    $('#button_add_eq').on('click', function(){
+
+        /*cnt_using = false;
+
+        for (var x=0; x<99; x++)
+        {
+            if (eq_line_using[x] == false)
+                {eq_line_count = x+2;
+                eq_line_using[x]= true;
+                cnt_using = true;
+                break;}
+        }
+        if (!cnt_using)
+        {
+          alert('Ограничение для добавления: 100 строк')
+          }
+        else
+        {*/
+      eq_line_count += 1
+      const eq_new_items = document.getElementById('eq_new_items_'+ eq_line_count);
+      //eq_line_count += 1
+      //console.log('count: ' + eq_line_count)
+
+      /*var select_text = '<select name="eq_role'+eq_line_count+'" class="form-select" arial-label="Default select">\
+        <option value="select_item" selected>Не выбран</option>' 
+
+      select_text += "</select>"*/
+
+      eq_new_items.innerHTML = eq_new_items.innerHTML + ' \
+      <li class="list-group-item d-flex justify-content-between align-items-center" id="role_eq'+eq_line_count+'"> \
+        '+eq_line_count+'&nbsp<input name="eq_num_role'+eq_line_count+'" id="id_eq_num_role'+eq_line_count+'" type="tel" style="width:70px;" class="form-control" placeholder="" step="any" onkeydown="EqRolehandleEnter(event,'+eq_line_count+')"/> \
+        <select name="eq_role'+eq_line_count+'" id="id_eq_role'+eq_line_count+'" class="form-select" arial-label="Default select"> \
+            <option value="select_item" selected>Не выбран</option>                                \
+            {% for item_type in form.ROLES.equipment %} \
+                <option value={{ item_type.id }}>{{ item_type.n_role_index }}.{{ item_type.c_role_desc }}</option> \
+            {% endfor %} \
+        </select> \
+        <input name="eq_timer'+eq_line_count+'" id="id_eq_timer'+eq_line_count+'" style="width:90px;" type="number" class="form-control" placeholder="" step="0.01" /> \
+        <select name="eq_par'+eq_line_count+'" id="id_eq_par'+eq_line_count+'" class="form-select" arial-label="Default select"> \
+            <option value="select_item" selected>Не выбран</option>                                \
+            {% for item_eq in form.DATA_ROLES.equipment %} \
+                <option value={{ item_eq.id }}>{{ item_eq.n_equipment_index }}: {{ item_eq.c_desc_equipment }}</option> \
+            {% endfor %} \
+        </select> \
+        <input name="eq_num_par'+eq_line_count+'" id="id_eq_num_par'+eq_line_count+'" type="tel" style="width:70px;" class="form-control" placeholder="" step="any" onkeydown="EqEqhandleEnter(event,'+eq_line_count+')"/> \
+        &nbsp;&nbsp;<input name="eq_masked'+eq_line_count+'" id="id_eq_masked'+eq_line_count+'" type="checkbox" class="form-check-label" />&nbsp;&nbsp; \
+    </li>';
+    if (eq_line_count > 1)
+    {
+        document.getElementById('button_del_eq').disabled = false;
+    }
+    if (eq_line_count == 100)
+    {
+        document.getElementById('button_del_eq').disabled = true;
+    }
+  });
+
+
+  function AddEQRoles(){
+
+    //const var_new_items = document.getElementById('var_new_items_' + var_line_count);
+
+
+    for (var index=1; index < eq_data_roles_len; index++)
+    {
+
+        /*for (var x=0; x<100; x++)
+        {
+            if (eq_line_using[x] == false)
+                {eq_line_count = x+2;
+                eq_line_using[x]= true;
+                break;}
+        }*/
+        eq_line_count += 1
+        const eq_new_items = document.getElementById('eq_new_items_' + eq_line_count);
+        //var_line_using[var_line_count-1] = true
+        //var_line_count += 1
+
+        //e.log('eq_line_count: ' + eq_line_count)
+
+        eq_new_items.innerHTML = eq_new_items.innerHTML + ' \
+      <li class="list-group-item d-flex justify-content-between align-items-center" id="role_eq'+eq_line_count+'"> \
+        '+eq_line_count+'&nbsp<input name="eq_num_role'+eq_line_count+'" id="id_eq_num_role'+eq_line_count+'" type="tel" style="width:70px;" class="form-control" placeholder="" step="any" onkeydown="EqRolehandleEnter(event,'+eq_line_count+')"/> \
+        <select name="eq_role'+eq_line_count+'" id="id_eq_role'+eq_line_count+'" class="form-select" arial-label="Default select"> \
+            <option value="select_item" selected>Не выбран</option>                                \
+            {% for item_type in form.ROLES.equipment %} \
+                <option value={{ item_type.id }}>{{ item_type.n_role_index }}.{{ item_type.c_role_desc }}</option> \
+            {% endfor %} \
+        </select> \
+        <input name="eq_timer'+eq_line_count+'" id="id_eq_timer'+eq_line_count+'" style="width:90px;" type="number" class="form-control" placeholder="" step="any" /> \
+        <select name="eq_par'+eq_line_count+'" id="id_eq_par'+eq_line_count+'" class="form-select" arial-label="Default select"> \
+            <option value="select_item" selected>Не выбран</option>                                \
+            {% for item_eq in form.DATA_ROLES.equipment %} \
+                <option value={{ item_eq.id }}>{{ item_eq.n_equipment_index }}: {{ item_eq.c_desc_equipment }}</option> \
+            {% endfor %} \
+        </select> \
+        <input name="eq_num_par'+eq_line_count+'" id="id_eq_num_par'+eq_line_count+'" type="tel" style="width:70px;" class="form-control" placeholder="" step="any" onkeydown="EqEqhandleEnter(event,'+eq_line_count+')"/> \
+        &nbsp;&nbsp;<input name="eq_masked'+eq_line_count+'" id="id_eq_masked'+eq_line_count+'" type="checkbox" class="form-check-label" />&nbsp;&nbsp; \
+    </li>';
+    if (eq_line_count > 1)
+    {
+        document.getElementById('button_del_eq').disabled = false;
+    }
+    if (eq_line_count == 100)
+    {
+        document.getElementById('button_del_eq').disabled = true;
+    }
+    }
+}
+
+var n_role_id = [
+    {% for item in form.EQ_DATA_ROLES %}
+    {{ item.n_role_id }},
+    {% endfor %}
+    ];
+
+var n_equipment_link_id = [
+    {% for item in form.EQ_DATA_ROLES %}
+    {{ item.n_equipment_link_id }},
+    {% endfor %}
+    ];
+
+var n_equipment_index = [
+    {% for item in form.EQ_DATA_ROLES %}
+    {{ item.n_equipment_link__n_equipment_index }},
+    {% endfor %}
+    ];
+
+var n_timer = [
+    {% for item in form.EQ_DATA_ROLES %}
+    '{{ item.n_timer }}'.replace(',', '.'),
+    {% endfor %}
+    ];
+var b_masked = [
+    {% for item in form.EQ_DATA_ROLES %}
+        '{{ item.b_masked }}'.toLowerCase() == 'true',
+    {% endfor %}
+    ];
+    //console.log(typeof n_role_id);
+    //console.log(typeof n_variable_id);
+    //console.log(n_role_id);
+    //console.log(n_equipment_link_id);
+
+    for (var index=0; index < eq_data_roles_len; index++)
+    {
+    //console.log('id_eq_role'+ (index+1))
+    const elmnt = document.getElementById('id_eq_role'+ (index+1))
+    const elmnt1 = document.getElementById('id_eq_par'+ (index+1))
+    //console.log('id_eq_role'+ (index+1))
+
+    for(var i=0; i < elmnt.options.length; i++)
+    {
+      if(elmnt.options[i].value == n_role_id[index]) {
+       elmnt.getElementsByTagName('option')[i].selected = true;//'selected';
+       document.getElementById('id_eq_num_role'+ (index+1)).value = n_role_id[index];
+       // console.log(elmnt.options[i].value);
+        break;
+      }
+    }
+    for(var i=0; i < elmnt1.options.length; i++)
+    {
+      if(elmnt1.options[i].value == n_equipment_link_id[index]) {
+       elmnt1.getElementsByTagName('option')[i].selected = true;//'selected';
+       document.getElementById('id_eq_num_par'+ (index+1)).value = n_equipment_index[index];
+       // console.log(elmnt.options[i].value);
+        break;
+      }
+    }
+    //document.getElementById('id_var_role'+ (index+1)).value = n_role_id[index];
+    document.getElementById('id_eq_timer'+ (index+1)).value = n_timer[index];
+    document.getElementById('id_eq_masked'+ (index+1)).checked = b_masked[index]; 
+    
+
+    //document.getElementById('id_var_par'+ (index+1)).value = n_variable_id[index];
+//https://stackoverflow.com/questions/10911526/how-do-i-programatically-select-an-html-option-using-javascript
+};
+
+}); 
+{% comment %} $(document).find().each(function() {
+    $(this).removeAttr("role2");
+}); {% endcomment %}
+/*function EqItemDelete(num){
+    console.log("delete")
+    //$("#new_item").removeAttr("role3");
+    //$("*[id], #new_item").removeAttr("role3");
+    //$(this).removeAttr("role3");
+    //$("#new_item *").removeAttr("role3");
+  
+  var eq_new_items = document.getElementById("eq_new_items_"+(num-1));
+  var del_item = document.getElementById("role_eq" + num);
+  eq_new_items.removeChild(del_item);
+  eq_line_using[num-2]= false;
+
+};  */
+
+function EqItemDelete(){
+    var eq_new_items = document.getElementById("eq_new_items_" + eq_line_count);
+    var del_item = document.getElementById("role_eq" + eq_line_count);
+    eq_new_items.removeChild(del_item);
+    eq_line_count -= 1
+    if (eq_line_count < 100)
+    {
+        document.getElementById('button_del_eq').disabled = false;
+    }    
+    if (eq_line_count == 1)
+    {
+        document.getElementById('button_del_eq').disabled = true;
+    }
+};  
+
+function EqRolehandleEnter(event,id) {
+    // Проверяем, была ли нажата клавиша Enter (код 13)
+    if (event.key === "Enter" || event.keyCode === 13) {
+        // Предотвращаем стандартное поведение (перезагрузку страницы)
+        event.preventDefault();
+        // Получаем значение из поля ввода
+        const inputValue = document.getElementById("id_eq_num_role"+id).value;
+
+        const elmnt = document.getElementById('id_eq_role'+ id)
+
+        var roles = [
+        {% for item in form.ROLES.equipment %}
+        {{ item.id }},
+        {% endfor %}
+        ];
+
+        if (inputValue > roles.length )
+        {
+        alert(`Введите корректный индекс! Индекса ${inputValue} не существует.`);
+        }
+        else
+        {
+        elmnt.getElementsByTagName('option')[inputValue].selected = true;
+        }
+        //alert(`Вы нажали Enter! Значение: ${inputValue}`);
+    }
+}
+function EqEqhandleEnter(event,id) {
+    // Проверяем, была ли нажата клавиша Enter (код 13)
+    if (event.key === "Enter" || event.keyCode === 13) {
+        // Предотвращаем стандартное поведение (перезагрузку страницы)
+        event.preventDefault();
+
+        // Получаем значение из поля ввода
+        const inputValue = document.getElementById("id_eq_num_par"+id).value;
+
+        // Выполняем ваш скрипт (например, выводим значение в консоль)
+        //console.log("Значение поля:", inputValue);
+
+        var n_equipment_id = [
+        {% for item in form.DATA_ROLES.equipment %}
+        {{ item.id }},
+        {% endfor %}
+        ];
+
+        var n_equipment_index = [
+        {% for item in form.DATA_ROLES.equipment %}
+        {{ item.n_equipment_index }},
+        {% endfor %}
+        ];
+
+        const elmnt = document.getElementById('id_eq_par'+ id)
+        // Выясняем индекс по id
+        var set_value = 0;
+        for (var index=0; index < n_equipment_index.length; index++)
+        {
+            //console.log(index + ":" + inputValue + "==" + n_variable_index[index]);
+            if (inputValue == n_equipment_index[index])
+                {
+                    //console.log("set_value = " + n_variable_id[index]);
+                    set_value = n_equipment_id[index];
+                    break;}
+                
+        }
+        console.log(set_value);
+        if (set_value == 0)
+        {
+            alert(`Введите корректный индекс! Индекса ${inputValue} не существует.`);
+        }
+        else 
+        {
+
+            for (var i=0; i < elmnt.options.length; i++)
+            {
+                if (elmnt.getElementsByTagName('option')[i].value == set_value)
+                    {
+                    elmnt.getElementsByTagName('option')[i].selected = true;
+                    }
+            
+            }
+        }
+
+    //alert(`Вы нажали Enter! Значение: ${inputValue}`);
+    }
+}
+    
+ 
+</script>
+{% comment %} {% endfor %} {% endcomment %}

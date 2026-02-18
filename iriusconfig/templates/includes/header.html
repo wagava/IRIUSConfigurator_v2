@@ -1,0 +1,62 @@
+{% load static %}
+<header>
+  <nav class="navbar navbar-light" style="background-color: #808080"> {% comment %}lightskyblue">{% endcomment %}
+    <div class="container">
+      <a class="navbar-brand" href="{% url 'modules:module_home' %}">
+        <img src="{% static 'img/logo.png' %}" width="30" height="30" class="d-inline-block align-top" alt="">
+        ИРИУС.Конфигуратор
+      </a>
+      {% with request.resolver_match.view_name as view_name %}
+        <ul class="nav  nav-pills">
+          <li class="nav-item">
+            <a class="nav-link {% if 'modules' in view_name %} text-white {% else %} text-dark {% endif %}" href="{% url 'modules:module_home' %}">
+              Модули
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link {% if 'variable' in view_name %} text-white {% else %} text-dark {% endif %}" href="{% url 'variables:variable_by_plc' 1 %}">
+              Переменные
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link {% if 'equipment' in view_name %} text-white {% else %} text-dark {% endif %}" href="{% url 'equipments:equipment_by_plc' 1 %}">
+              Оборудование
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link {% if view_name == 'general:about' %} text-white {% else %} text-dark {% endif %}" href="{% url 'general:about' %}">
+              Инфо
+            </a>
+          </li>
+          {% comment %} <li>
+            <div class="dropdown">
+              <button class="btn btn-primary dropdown-toggle" type="button" id="dropdownMenuButton1" data-bs-toggle="dropdown" aria-expanded="false">
+                Dropdown button
+              </button>
+              <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton1">
+                <li><a class="dropdown-item" href="#">Action</a></li>
+                <li><a class="dropdown-item" href="#">Another action</a></li>
+                <li><a class="dropdown-item" href="#">Something else here</a></li>
+              </ul>
+              
+            </div>
+          </li> {% endcomment %}
+          {% if user.is_authenticated %}
+            <div class="btn-group" role="group" aria-label="Basic outlined example">
+              <button type="button" class="btn btn-outline-primary"><a class="text-decoration-none text-reset"
+                  href="{% url 'accounts:logout' %}">Выйти</a></button> 
+            </div>
+            <div class="text-center mt-2">
+              &nbsp{{ user.username }}
+            </div>
+          {% else %}
+            <div class="btn-group" role="group" aria-label="Basic outlined example">
+              <button type="button" class="btn btn-outline-primary"><a class="text-decoration-none text-reset"
+                  href="{% url 'accounts:login' %}">Войти</a></button>
+            </div>
+          {% endif %}
+        </ul>
+      {% endwith %}
+    </div>
+  </nav>
+</header>

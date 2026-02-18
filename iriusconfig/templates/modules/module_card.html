@@ -1,0 +1,31 @@
+
+  <div class="container">
+    <style>
+      .tr-active{background-color: #3399ff;}
+      .tr-inactive{background-color: #C1E7FD;}
+    </style>
+        <tr id="{{module.id}}" onclick=GetElement({{module.id}})>
+          <td><strong>{{ module.n_module_index }}</strong></td>
+          <td>{{ module.c_name_module }}</td>
+          <td>{{ module.c_desc_module }}</td>
+          <td>{{ module.n_controller }}</td>
+          <td>
+          {% if user.is_staff %}
+            <a href="{% url 'modules:module_edit' plc_id module.id %}" class="card-link">Редактировать</a>
+          {% endif %}
+          </td>
+          <td>
+            {% if user.is_staff %}
+            <a href="{% url 'modules:module_delete' plc_id module.id %}" class="card-link">Удалить</a></td>
+            {% endif %}
+        </tr>
+  </div>
+
+<script>
+  $(document).ready(function() {
+    var module_id = {{ module.id|escapejs }};
+    row_tbl[{{ module.id|escapejs }}] = false;
+  
+  });
+
+</script>

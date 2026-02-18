@@ -1,0 +1,33 @@
+{% load formatted_tags %}
+<div class="row row-cols-1 row-cols-md-3 g-4" id="id_ats_fields">
+{% for item_ats_key, item_ats_value in form.ats_fields_attrs.items %}
+<div class="col">
+    <div class="card">
+        <div class="card-body">
+            <h5 class="card-title"> {{ item_ats_key }} </h5>
+            <ul class="list-group list-group-flush">
+            <li class="list-group-item list-group-item-secondary" aria-disabled="true">
+            </li>
+            {% for item_field in item_ats_value %}
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+               {% if item_field.n_attribute_type == 128 %}
+               {{ item_field.c_display_attribute }}:&nbsp<input name="attr_ats{{ item_field.c_name_attribute }}" id="id_{{ item_field.c_name_attribute }}" type="number" class="form-control" placeholder="" step="1" value="{% if item_field.f_value %}{{item_field.f_value|formatted_int}}{%else%}{%endif%}"/>
+               {% elif  item_field.n_attribute_type == 130 %}
+               {{ item_field.c_display_attribute }}:&nbsp<input name="attrf_ats{{ item_field.c_name_attribute }}" id="id_{{ item_field.c_name_attribute }}" type="number" class="form-control" placeholder="" step="any" value="{% if item_field.f_value %}{{item_field.f_value|formatted_float}}{%else%}{%endif%}"/>
+               {% elif  item_field.n_attribute_type == 129 %}
+               <label class="form-check-label">
+                {% if item_field.n_parameter_bit < 10 %}
+                    <input type="checkbox" name="attrb_ats_0{{ item_field.n_parameter_bit }}{{ item_field.c_name_attribute }}" id="id_{{ item_field.c_name_attribute }}" class="form-check-input" {% if item_field.f_value and item_field.f_value == 1 %} checked {% endif %}/> &nbsp &nbsp {{ item_field.c_display_attribute }}                     
+                {% else %}
+                    <input type="checkbox" name="attrb_ats_{{ item_field.n_parameter_bit }}{{ item_field.c_name_attribute }}" id="id_{{ item_field.c_name_attribute }}" class="form-check-input" {% if item_field.f_value and item_field.f_value == 1 %}checked{% endif %} /> &nbsp &nbsp {{ item_field.c_display_attribute }}                     
+                {% endif %}
+                </label> 
+               {% endif %}
+            </li>
+            {% endfor %}
+            </ul>
+        </div>
+    </div>
+</div>
+{% endfor %}
+</div>

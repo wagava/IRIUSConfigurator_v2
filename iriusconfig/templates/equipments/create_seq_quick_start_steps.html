@@ -1,0 +1,444 @@
+
+<div class="col">
+    <div class="card">
+        <div class="card-body">
+            <h5 class="card-title"> Быстрый запуск </h5>
+            <ul class="list-group list-group-flush">
+            <li class="list-group-item list-group-item-secondary" aria-disabled="true">
+            </li>
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+                <div align="left">Функция</div> <div align="center">Таймер/Шаг</div> <div align="right">Объект&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;М</div>
+            </li>
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+                1&nbsp<input name="seq_quick_start_num_role1" id="id_seq_quick_start_num_role1" type="tel" style="width:70px;" class="form-control" placeholder="" step="any" onkeydown="SeqQuickStartRolehandleEnter(event,1)"/>
+                <select name="seq_quick_start_role1" id="id_seq_quick_start_role1" class="form-select" arial-label="Default select" onchange="GetQuickStartParComboVal(this,1)">
+                    <option value="select_item" data-role-type="">Не выбран</option>                                
+                    {% for item_type in form.ROLES.sequence %}
+                        <option value={{ item_type.id }} data-role-type="{{ item_type.b_role_equipment }}">{{ item_type.n_role_index}}: {{ item_type.c_role_desc }}</option>
+                    {% endfor %}
+                </select>
+                <input name="seq_quick_start_timer1" id="id_seq_quick_start_timer1" style="width:90px;" type="number" class="form-control" placeholder="" step="1"/>
+                <select name="seq_quick_start_par1" id="id_seq_quick_start_par1" class="form-select" arial-label="Default select">
+                    <option value="select_item" >Не выбран</option>                                
+                </select>
+                <input name="seq_quick_start_num_par1" id="id_seq_quick_start_num_par1" type="tel" style="width:70px;" class="form-control" placeholder="" step="any" onkeydown="SeqQuickStartItemhandleEnter(event,1)"/>
+                &nbsp&nbsp<input name='seq_quick_start_masked1' id="id_seq_quick_start_masked1" type='checkbox' class="form-check-label" />                
+            </li>
+            <div id="seq_quick_start_new_items">
+                {% for i in form.RANGE_100 %}
+                <div id="seq_quick_start_new_items_{{i}}">
+                </div>
+                {% endfor %}
+            </div>
+            <li class="list-group-item d-flex justify-content-between align-items-center" align="center">
+            <button type="button" id="button_quick_start_add_step" class="btn btn-primary">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-plus" viewBox="0 0 16 16">
+                    <path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4z"/>
+                  </svg>
+            </button>
+            <button type="button" id="button_quick_start_del_step" class="btn btn-primary" onclick="SeqQuickStartStepItemDelete()" disabled>
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-dash" viewBox="0 0 16 16">
+                    <path d="M4 8a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7A.5.5 0 0 1 4 8z"/>
+                  </svg>
+            </button>            
+        </li>
+            </ul>
+        </div>
+    </div>
+</div>
+<script>
+    $(document).ready(function() {
+
+    seq_quick_start_line_count = 1
+
+    let eq_data_roles_len = {{ form.EQ_DATA_ROLES|length }}
+    let seq_data_step_len = {{ form.EQ_SEQ_DATA_STEPS|length }}
+        console.log('seq_data_step_len = ' + seq_data_step_len)
+    if (seq_data_step_len > 0)
+        {console.log('not none');
+
+        var quick_start_steps_role_id = []
+        var quick_start_steps_timer = []
+        var quick_start_steps_eq_var_link = []
+        var quick_start_steps_eq_var_index = []
+        var quick_start_steps_step_type = []
+        var quick_start_steps_masked = []
+
+        {% for item in form.EQ_SEQ_DATA_STEPS.2 %}  // 2 - это ключ для быстрого старта
+            quick_start_steps_role_id.push({{ item.1.n_role_id }})
+
+            if ('{{ item.1.n_role__b_role_equipment }}'.toLowerCase() == 'true'){
+                quick_start_steps_eq_var_link.push({{item.1.n_equipment_link_id }});
+                quick_start_steps_eq_var_index.push({{item.1.n_equipment_link__n_equipment_index }});
+            }
+            else {
+                quick_start_steps_eq_var_link.push({{item.1.n_variable_link_id }});
+                quick_start_steps_eq_var_index.push({{item.1.n_variable_link__n_variable_index }});
+                }
+
+            quick_start_steps_timer.push('{{ item.1.n_timer }}'.replace(',', '.'))
+            quick_start_steps_step_type.push('{{ item.1.step_type }}')    
+            quick_start_steps_masked.push('{{ item.1.b_masked }}'.toLowerCase() == 'true')                    
+        {% endfor %}
+
+        console.log('id role seq = ' + quick_start_steps_role_id[0])
+        // для первого элемента (шаг 1)
+        GetQuickStartParComboVal(quick_start_steps_role_id[0],seq_quick_start_line_count)
+        SetQuickStartAllComboVal(quick_start_steps_role_id[0], quick_start_steps_timer[0],quick_start_steps_eq_var_link[0],quick_start_steps_eq_var_index[0],quick_start_steps_masked[0],seq_quick_start_line_count)
+        // для последующих строк шагов
+        if (quick_start_steps_role_id.length > 1)
+        {
+            seq_quick_start_line_count += 1
+            AddSEQQuickStartRoles(quick_start_steps_role_id,quick_start_steps_timer,quick_start_steps_eq_var_link,quick_start_steps_eq_var_index,quick_start_steps_masked,quick_start_steps_step_type);
+            document.getElementById('button_quick_start_del_step').disabled = false;
+        }
+
+    }
+
+
+    $('#button_quick_start_add_step').on('click', function(){
+
+        if (seq_quick_start_line_count == 100)
+        {
+          alert('Ограничение для добавления: 100 шагов')
+          }
+        else
+        {
+      seq_quick_start_line_count += 1
+      const seq_quick_start_new_items = document.getElementById('seq_quick_start_new_items_'+ seq_quick_start_line_count);
+      console.log('count: ' + eq_line_count)
+
+      seq_quick_start_new_items.innerHTML = seq_quick_start_new_items.innerHTML + ' \
+      <li class="list-group-item d-flex justify-content-between align-items-center" id="role_seq_quick_start'+seq_quick_start_line_count+'"> \
+        '+seq_quick_start_line_count+'&nbsp<input name="seq_quick_start_num_role'+seq_quick_start_line_count+'" id="id_seq_quick_start_num_role'+seq_quick_start_line_count+'" type="tel" style="width:70px;" class="form-control" placeholder="" step="any" onkeydown="SeqQuickStartRolehandleEnter(event,'+seq_quick_start_line_count+')"/> \
+        <select name="seq_quick_start_role'+seq_quick_start_line_count+'" id="id_seq_quick_start_role'+seq_quick_start_line_count+'" class="form-select" arial-label="Default select" onchange="GetQuickStartParComboVal(this,'+seq_quick_start_line_count+')"> \
+            <option value="select_item" selected data-role-type="">Не выбран</option>                                \
+            {% for item_type in form.ROLES.sequence %} \
+                <option value={{ item_type.id }} data-role-type="{{ item_type.b_role_equipment }}">{{ item_type.n_role_index}}: {{ item_type.c_role_desc }}</option> \
+            {% endfor %} \
+        </select> \
+        <input name="seq_quick_start_timer'+seq_quick_start_line_count+'" id="id_seq_quick_start_timer'+seq_quick_start_line_count+'" type="number" style="width:90px;" class="form-control" placeholder="" step="any" /> \
+        <select name="seq_quick_start_par'+seq_quick_start_line_count+'" id="id_seq_quick_start_par'+seq_quick_start_line_count+'" class="form-select" arial-label="Default select"> \
+            <option value="select_item" selected>Не выбран</option>                                \
+        </select> \
+        <input name="seq_quick_start_num_par'+seq_quick_start_line_count+'" id="id_seq_quick_start_num_par'+seq_quick_start_line_count+'" type="tel" style="width:70px;" class="form-control" placeholder="" step="any" onkeydown="SeqQuickStartItemhandleEnter(event,'+seq_quick_start_line_count+')"/> \
+        &nbsp&nbsp<input name="seq_quick_start_masked'+seq_quick_start_line_count+'" id="id_seq_quick_start_masked'+seq_quick_start_line_count+'" type="checkbox" class="form-check-label"/> \
+        </li>'
+    }
+
+    if (seq_quick_start_line_count > 1)
+    {
+        document.getElementById('button_quick_start_del_step').disabled = false;
+    }
+    if (seq_quick_start_line_count == 100)
+    {
+        document.getElementById('button_quick_start_add_step').disabled = true;
+    }
+  });
+
+
+  function AddSEQQuickStartRoles(role_id,timer,eq_var_link,eq_var_index,masked, step_type){
+
+
+    for (var index=1; index < role_id.length; index++)
+    {
+        const seq_quick_start_new_items = document.getElementById('seq_quick_start_new_items_' + seq_quick_start_line_count);
+
+        seq_quick_start_new_items.innerHTML = seq_quick_start_new_items.innerHTML + ' \
+      <li class="list-group-item d-flex justify-content-between align-items-center" id="role_seq_quick_start'+seq_quick_start_line_count+'"> \
+        '+seq_quick_start_line_count+'&nbsp<input name="seq_quick_start_num_role'+seq_quick_start_line_count+'" id="id_seq_quick_start_num_role'+seq_quick_start_line_count+'" type="tel" style="width:70px;" class="form-control" placeholder="" step="any" onkeydown="SeqQuickStartRolehandleEnter(event,'+seq_quick_start_line_count+')"/> \
+        <select name="seq_quick_start_role'+seq_quick_start_line_count+'" id="id_seq_quick_start_role'+seq_quick_start_line_count+'" class="form-select" arial-label="Default select" onchange="GetQuickStartParComboVal(this,'+seq_quick_start_line_count+')"> \
+            <option value="select_item" selected data-role-type="">Не выбран</option>                                \
+            {% for item_type in form.ROLES.sequence %} \
+                <option value={{ item_type.id }} data-role-type="{{ item_type.b_role_equipment }}">{{ item_type.n_role_index}}: {{ item_type.c_role_desc }}</option> \
+            {% endfor %} \
+        </select> \
+        <input name="seq_quick_start_timer'+seq_quick_start_line_count+'" id="id_seq_quick_start_timer'+seq_quick_start_line_count+'" type="number" style="width:90px;" class="form-control" placeholder="" step="any" /> \
+        <select name="seq_quick_start_par'+seq_quick_start_line_count+'" id="id_seq_quick_start_par'+seq_quick_start_line_count+'" class="form-select" arial-label="Default select"> \
+            <option value="select_item" selected>Не выбран</option>                                \
+        </select> \
+        <input name="seq_quick_start_num_par'+seq_quick_start_line_count+'" id="id_seq_quick_start_num_par'+seq_quick_start_line_count+'" type="tel" style="width:70px;" class="form-control" placeholder="" step="any" onkeydown="SeqQuickStartItemhandleEnter(event,'+seq_quick_start_line_count+')"/> \
+        &nbsp&nbsp<input name="seq_quick_start_masked'+seq_quick_start_line_count+'" id="id_seq_quick_start_masked'+seq_quick_start_line_count+'" type="checkbox" class="form-check-label"/> \
+        </li>'
+    GetQuickStartParComboVal(role_id[index],seq_quick_start_line_count)
+    seq_quick_start_line_count += 1
+    }
+
+    seq_quick_start_line_count -= 1
+
+    for (var index=0; index < role_id.length; index++)
+    {
+        const elmnt = document.getElementById('id_seq_quick_start_role'+ (index+1))
+        const elmnt1 = document.getElementById('id_seq_quick_start_par'+ (index+1))
+
+            for(var i=0; i < elmnt.options.length; i++)
+            {
+                if(elmnt.options[i].value == role_id[index]) {
+                elmnt.getElementsByTagName('option')[i].selected = true;//'selected';
+                document.getElementById('id_seq_quick_start_num_role'+ (index+1)).value = role_id[index];
+                break;
+            }
+        }
+        for(var i=0; i < elmnt1.options.length; i++)
+        {
+            if(elmnt1.options[i].value == eq_var_link[index]) {
+                elmnt1.getElementsByTagName('option')[i].selected = true;
+                document.getElementById('id_seq_quick_start_num_par'+ (index+1)).value = eq_var_index[index];
+
+                break;
+            }
+        }
+        document.getElementById('id_seq_quick_start_timer'+ (index+1)).value = timer[index];
+        document.getElementById('id_seq_quick_start_masked'+ (index+1)).checked = masked[index];        
+
+        //document.getElementById('id_var_par'+ (index+1)).value = n_variable_id[index];
+        //https://stackoverflow.com/questions/10911526/how-do-i-programatically-select-an-html-option-using-javascript
+    };
+
+};
+
+}); 
+
+function SeqQuickStartStepItemDelete(){
+    console.log("delete")
+    console.log("seq_quick_start_line_count = " + seq_quick_start_line_count)
+    var seq_quick_start_new_items = document.getElementById("seq_quick_start_new_items_"+seq_quick_start_line_count);
+    var del_item = document.getElementById("role_seq_quick_start" + seq_quick_start_line_count);
+    seq_quick_start_new_items.removeChild(del_item);
+    //seq_quick_start_line_using[seq_quick_start_line_count-1]= false;
+    seq_quick_start_line_count -= 1
+    if (seq_quick_start_line_count < 100)
+    {
+        document.getElementById('button_quick_start_add_step').disabled = false;
+    }    
+    if (seq_quick_start_line_count == 1)
+    {
+        document.getElementById('button_quick_start_del_step').disabled = true;
+    }
+};  
+
+
+function SetQuickStartAllComboVal(role, timer, par, par_index, masked, num) {
+
+    const elmnt = document.getElementById('id_seq_quick_start_role'+ num)
+    const elmnt1 = document.getElementById('id_seq_quick_start_par'+ num)
+
+    for(var i=0; i < elmnt.options.length; i++)
+    {
+      if(elmnt.options[i].value == role) {
+       elmnt.getElementsByTagName('option')[i].selected = true;
+       break;
+      }
+    }
+    for(var i=0; i < elmnt1.options.length; i++)
+    {
+      if(elmnt1.options[i].value == par) {
+       elmnt1.getElementsByTagName('option')[i].selected = true;
+       break;
+      }
+    }
+    document.getElementById('id_seq_quick_start_timer'+ num).value = timer;
+    document.getElementById('id_seq_quick_start_masked'+ num).checked = masked;        
+};
+
+function GetQuickStartParComboVal(selectObject, num) {
+
+    //console.log("pppppppppppppp " + typeof selectObject)
+
+   // var value = selectObject.value;  
+   // console.log(value + " | " + num);
+   document.getElementById("id_seq_quick_start_num_par"+num).value = "";
+    if (typeof selectObject == 'number')  //проверка передача с контрола, либо с функции (сразу выдача id)
+    {
+        select_id = selectObject
+        console.log("select_id = " + selectObject)
+
+    }
+    else
+    {
+
+
+        select_id = document.getElementById('id_seq_quick_start_role'+num).value
+    }
+    //console.log("select_id = " + selectObject)
+    var b_role_equipment;
+    {% for item in form.ROLES.sequence %}
+        if ({{ item.id }} == select_id) {
+            b_role_equipment = ('{{ item.b_role_equipment }}'.toLowerCase() == 'true')
+            //break;
+    }
+
+    {% endfor %}
+    
+    const elmnt = document.getElementById('id_seq_quick_start_par'+num)
+    
+    $("#id_seq_quick_start_par"+num).empty();
+    
+    var n_role_id;
+    var c_role_desc;
+
+    if (b_role_equipment == true)
+    {
+
+        n_role_id = [
+        {% for item in form.DATA_ROLES.equipment %}
+        {{ item.id }},
+        {% endfor %}
+        ]
+        c_role_desc = [
+        {% for item in form.DATA_ROLES.equipment %}
+        '{{ item.n_equipment_index }}: {{ item.c_desc_equipment }}',
+        {% endfor %}
+        ]
+    }
+    else
+    {
+        n_role_id = [
+        {% for item in form.DATA_ROLES.variable %}
+        {{ item.id }},
+        {% endfor %}
+        ]
+        c_role_desc = [
+        {% for item in form.DATA_ROLES.variable %}
+        '{{ item.n_variable_index }}: {{ item.c_desc_variable }}',
+        {% endfor %}
+        ]
+    }
+
+
+    for(var i=0; i < n_role_id.length; i++) 
+    {
+        if (i == 0)
+        {
+            var option = document.createElement("option");
+            option.value = 'select_item'
+            option.text = 'Не выбран';
+            option.selected = true;
+            elmnt.add(option)
+        }
+
+        var option = document.createElement("option");
+        option.value = n_role_id[i]
+        option.text = c_role_desc[i];
+        elmnt.add(option)
+    }
+
+
+  }    
+ 
+
+  function SeqQuickStartRolehandleEnter(event,id) {
+    // Проверяем, была ли нажата клавиша Enter (код 13)
+    if (event.key === "Enter" || event.keyCode === 13) {
+        // Предотвращаем стандартное поведение (перезагрузку страницы)
+        event.preventDefault();
+        // Получаем значение из поля ввода
+        const inputValue = document.getElementById("id_seq_quick_start_num_role"+id).value;
+
+        const elmnt = document.getElementById('id_seq_quick_start_role'+ id)
+
+        var roles = [
+        {% for item in form.ROLES.sequence %}
+        {{ item.id }},
+        {% endfor %}
+        ];
+
+        if (inputValue > roles.length )
+        {
+            alert(`Введите корректный индекс! Индекса ${inputValue} не существует.`);
+        }
+        else
+        {
+            elmnt.getElementsByTagName('option')[inputValue].selected = true;
+        }
+        //alert(`Вы нажали Enter! Значение: ${inputValue}`);
+        GetQuickStartParComboVal(elmnt,id)
+    }
+}
+
+function SeqQuickStartItemhandleEnter(event,id) {
+    // Проверяем, была ли нажата клавиша Enter (код 13)
+    if (event.key === "Enter" || event.keyCode === 13) {
+        // Предотвращаем стандартное поведение (перезагрузку страницы)
+        event.preventDefault();
+
+        // Получаем значение из поля ввода
+        const inputValue = document.getElementById("id_seq_quick_start_num_par"+id).value;
+        const elmntrole = document.getElementById('id_seq_quick_start_role'+ id)
+        // Выполняем ваш скрипт (например, выводим значение в консоль)
+        //console.log("Значение поля:", inputValue);
+
+        role_type_value = elmntrole.getElementsByTagName('option')[elmntrole.selectedIndex].getAttribute('data-role-type');
+        
+        console.log(`Тип роли шага: ${ role_type_value }`);
+        if (role_type_value.toLowerCase() !="") 
+        {
+            var n_item_id = []
+            var n_item_index = []
+            if (role_type_value.toLowerCase() =="true") // Оборудование
+            {
+                //console.log("тип оборудование!")
+                n_item_id = [
+                {% for item in form.DATA_ROLES.equipment %}
+                {{ item.id }},
+                {% endfor %}
+                ];
+
+                n_item_index = [
+                {% for item in form.DATA_ROLES.equipment %}
+                {{ item.n_equipment_index }},
+                {% endfor %}
+                ];
+            }
+            else // if (role_type_value.toLowerCase() == "false") 
+            {
+                //console.log("тип переменная!")
+                n_item_id = [
+                {% for item in form.DATA_ROLES.variable %}
+                {{ item.id }},
+                {% endfor %}
+                ];
+
+                n_item_index = [
+                {% for item in form.DATA_ROLES.variable %}
+                {{ item.n_variable_index }},
+                {% endfor %}
+                ];
+
+            }
+            const elmnt = document.getElementById('id_seq_quick_start_par'+ id)
+            // Выясняем индекс по id
+            var set_value = 0;
+            for (var index=0; index < n_item_index.length; index++)
+            {
+                //console.log(index + ":" + inputValue + "==" + n_item_index[index]);
+                if (inputValue == n_item_index[index])
+                    {
+                        //console.log("set_value = " + n_variable_id[index]);
+                        set_value = n_item_id[index];
+                        break;}
+                    
+            }
+            console.log(set_value);
+            if (set_value == 0)
+            {
+                alert(`Введите корректный индекс! Индекса ${inputValue} не существует.`);
+            }
+            else 
+            {
+
+                for (var i=0; i < elmnt.options.length; i++)
+                {
+                    if (elmnt.getElementsByTagName('option')[i].value == set_value)
+                        {
+                        elmnt.getElementsByTagName('option')[i].selected = true;
+                        }
+                
+                }
+            }
+        }
+    //alert(`Вы нажали Enter! Значение: ${inputValue}`);*/
+    }
+}
+
+</script>

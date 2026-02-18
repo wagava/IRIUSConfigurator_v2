@@ -1,0 +1,30 @@
+{% comment %} <div class="col d-flex justify-content-center"> {% endcomment %}
+  {% comment %} <div class="card" style="width: 40rem;"> {% endcomment %}
+    {% comment %} <div class="container" style="background-color: lightgray;> {% endcomment %}
+    <div class="container">
+    <div class="card-body">
+      {% comment %} {% if post.image %}
+        <a href="{{ post.image.url }}" target="_blank">
+          <img class="border-3 rounded img-fluid img-thumbnail mb-2 mx-auto d-block" src="{{ post.image.url }}">
+        </a>
+      {% endif %} {% endcomment %}
+      {% comment %} <style>
+        table, th, td {
+          border: 1px solid black;
+          border-collapse: collapse;
+        }
+        
+        th:nth-child(even),td:nth-child(even) {
+          background-color: #D6EEEE;
+        } {% endcomment %}
+        </style>
+      <table style="border: 1px solid gray;background-color: #C1E7FD;">
+        <tr><td style="width:5rem"><h5 class="card-title">{{ equipment.n_equipment_index }} </h5></td>
+          <td style="width:10rem">{{ equipment.c_name_equipment }}</td>
+          <td style="width:50rem">{{ equipment.c_desc_equipment }}</td>
+          <td style="width:5rem">{{ equipment.n_controller }}</td>
+          <td style="width:10rem"><a href="{% url 'equipments:equipment_edit' plc_id equipment.id %}" class="card-link">Редактировать</a></td>
+          <td style="width:10rem"><a href="{% url 'equipments:equipment_delete' plc_id equipment.id %}" class="card-link">Удалить</a></td></tr> 
+      </table>
+    </div>
+  </div>

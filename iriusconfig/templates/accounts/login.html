@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% load django_bootstrap5 %}
+
+{% block title %}
+  Авторизация
+{% endblock %}
+
+{% block control_panel %}
+<div class="container d-flex justify-content-center align-items-center" style="height: 100vh;">
+  <div class="card" style="width: 30rem;">
+    <div class="card-header text-center">
+      <h2>Авторизация</h2>
+    </div>
+    <div class="card-body">
+      {% if user.is_authenticated %}
+        <div class="card-header text-center">
+          <h2>Пользователь &nbsp{{ user.username }} уже вошел в систему! </h2>
+        </div>
+      {% else %}
+        <form method="post" class="d-flex flex-column">
+          {% csrf_token %}
+          {% bootstrap_form form %}
+          <button type="submit" class="btn btn-primary mt-3">Вход</button>
+        </form>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+<!--<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Login</title>
+</head>
+<body>
+    <h2>Login</h2>
+    <form method="post">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit">Login</button>
+    </form>
+</body>
+</html> --> 
+<!-- <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Login</title>
+</head>
+<body>
+    <h2>Login</h2>
+    <form method="post">
+        {% csrf_token %}
+        {{ form.non_field_errors }}
+        {{ form.username.errors }}
+        {{ form.username.label_tag }} {{ form.username }}<br>
+        {{ form.password.errors }}
+        {{ form.password.label_tag }} {{ form.password }}<br>
+        <button type="submit">Login</button>
+    </form>
+</body>
+</html> -->
+
+
