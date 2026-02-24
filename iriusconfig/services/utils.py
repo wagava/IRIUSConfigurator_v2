@@ -1,4 +1,5 @@
 # from typing import ClassVar
+from enum import Enum
 import struct
 import time
 from dataclasses import dataclass
@@ -6,22 +7,20 @@ from dataclasses import dataclass
 from equipments.models import cnfEquipment
 from general.models import cnfAttribute, cnfCommands, cnfController
 from services.mb_client import SelfModbusTcpClient
+from services.simatic_client import Snap7Client
 from variables.models import cnfVariable
 
 from iriusconfig.constants import (AttributeFieldType, GlobalObjectID,
                                    PlcAddressBlockConstants,
                                    PlcCommandConstants,
                                    CommandInterfaceConstants)
-from iriusconfig.settings import PLC_IP
+from iriusconfig.settings import PLC_CLIENT_TYPE # PLC_IP
 
-# CLIENTS = {
-#     plc_item.id: SelfModbusTcpClient(plc_item.c_ip_controller, 502)
-#     for plc_item in cnfController.objects.all()
-# }
 
-# client = SelfModbusTcpClient(PLC_IP,502)
-
-# prev_return_rec_last = None  # Переменная, хранящая последние значения Rec_last d ReturnDataBlocks
+class ClientTypes(Enum):
+    """Типы клиента для работы с PLC."""
+    SIMATIC = 'SIMATIC'
+    MODBUS = 'MODBUS'
 
 def get_plc_clients():
     """Формирование экземпляров подключения
@@ -33,11 +32,17 @@ def get_plc_clients():
 
         plc_list = plc_item.c_ip_controller.strip().split(',')
         if len(plc_list) == 2:
-            CLIENTS[plc_item.id] = [SelfModbusTcpClient(plc_list[0], 502),
-                                     SelfModbusTcpClient(plc_list[1], 502)]
+            if PLC_CLIENT_TYPE == ClientTypes.MODBUS:
+                CLIENTS[plc_item.id] = [SelfModbusTcpClient(plc_list[0], 502),
+                                        SelfModbusTcpClient(plc_list[1], 502)]
+            elif PLC_CLIENT_TYPE == ClientTypes.SIMATIC:
+                CLIENTS[plc_item.id] = [Snap7Client(plc_list[0]),
+                                        Snap7Client(plc_list[1])]
         else:
-            CLIENTS[plc_item.id] = [SelfModbusTcpClient(plc_list[0], 502)]
-
+            if PLC_CLIENT_TYPE == ClientTypes.MODBUS:
+                CLIENTS[plc_item.id] = [SelfModbusTcpClient(plc_list[0], 502)]
+            elif PLC_CLIENT_TYPE == ClientTypes.SIMATIC:
+                CLIENTS[plc_item.id] = [Snap7Client(plc_list[0])]
     return CLIENTS
     # CLIENTS = {plc_item.id:SelfModbusTcpClient(plc_item.c_ip_controller,502) for plc_item in cnfController.object.all()}
 

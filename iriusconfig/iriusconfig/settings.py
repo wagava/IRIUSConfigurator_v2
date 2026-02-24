@@ -26,6 +26,7 @@ POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD", default="postgres")
 
 P_KEY = os.getenv("P_KEY", default="key")
 
+PLC_CLIENT_TYPE = os.getenv("PLC_CLIENT_TYPE", default="MODBUS")
 
 INTERNAL_IPS = [
     "127.0.0.1",
