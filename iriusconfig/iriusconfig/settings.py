@@ -51,7 +51,7 @@ INSTALLED_APPS = [
     'rest_framework.authtoken',
     # 'rest_framework_simplejwt.token_blacklist',
     'djoser',
-    "django_pam",
+    # "django_pam", # только для Linux
     'drf_yasg',
     'accounts',
     'api',
@@ -185,16 +185,16 @@ else:
     )
 
 AUTHENTICATION_BACKENDS = [
-  'django_pam.auth.backends.PAMBackend',
+  # 'django_pam.auth.backends.PAMBackend',
   'django.contrib.auth.backends.ModelBackend',
 ]
-# PAM_SERVICE = 'login'
-PAM_SERVICE = 'sshd'
+
+# PAM_SERVICE = 'sshd'  # только для Linux
 # # По умолчанию django-pam создает пользователей автоматически, если они прошли аутентификацию через PAM, но еще не существуют в базе данных Django
-DJANGO_PAM_CREATE_USER = True  # False - отключить автоматическое создание пользователей
+# DJANGO_PAM_CREATE_USER = True  # False - отключить автоматическое создание пользователей  # только для Linux
 
 # # использовать конкретную группу Linux для ограничения доступа
-DJANGO_PAM_ALLOWED_GROUPS = ['operators']
+# DJANGO_PAM_ALLOWED_GROUPS = ['operators']  # только для Linux
 
 
 LOGGING = {
