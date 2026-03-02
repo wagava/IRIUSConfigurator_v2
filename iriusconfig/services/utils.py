@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from equipments.models import cnfEquipment
 from general.models import cnfAttribute, cnfCommands, cnfController
 from services.mb_client import SelfModbusTcpClient
-from services.simatic_client import Snap7Client
+from services.simatic_client import DataTypes, Snap7Client
 from variables.models import cnfVariable
 
 from iriusconfig.constants import (AttributeFieldType, GlobalObjectID,
@@ -22,6 +22,8 @@ class ClientTypes(Enum):
     SIMATIC = 'SIMATIC'
     MODBUS = 'MODBUS'
 
+client_type = ClientTypes(PLC_CLIENT_TYPE)
+
 def get_plc_clients():
     """Формирование экземпляров подключения
     к контроллерам проекта с учетом резервирования.
@@ -32,16 +34,16 @@ def get_plc_clients():
 
         plc_list = plc_item.c_ip_controller.strip().split(',')
         if len(plc_list) == 2:
-            if PLC_CLIENT_TYPE == ClientTypes.MODBUS:
+            if client_type == ClientTypes.MODBUS:
                 CLIENTS[plc_item.id] = [SelfModbusTcpClient(plc_list[0], 502),
                                         SelfModbusTcpClient(plc_list[1], 502)]
-            elif PLC_CLIENT_TYPE == ClientTypes.SIMATIC:
+            elif client_type == ClientTypes.SIMATIC:
                 CLIENTS[plc_item.id] = [Snap7Client(plc_list[0]),
                                         Snap7Client(plc_list[1])]
         else:
-            if PLC_CLIENT_TYPE == ClientTypes.MODBUS:
+            if client_type == ClientTypes.MODBUS:
                 CLIENTS[plc_item.id] = [SelfModbusTcpClient(plc_list[0], 502)]
-            elif PLC_CLIENT_TYPE == ClientTypes.SIMATIC:
+            elif client_type == ClientTypes.SIMATIC:
                 CLIENTS[plc_item.id] = [Snap7Client(plc_list[0])]
     return CLIENTS
     # CLIENTS = {plc_item.id:SelfModbusTcpClient(plc_item.c_ip_controller,502) for plc_item in cnfController.object.all()}
@@ -97,24 +99,54 @@ def add_telegram(current_item, tlm_num, telegram):
         telegram.extend([get_int_from_bytes(item[0], tlm_num), word2[1], word2[0]])
     return telegram
 
-def get_last_command(client):
-    cmd_rec_last = client.read_holding_registers(
-        PlcAddressBlockConstants.CMD_DATA_BLOCKS_REC_LAST_ADDRESS, 3
-    )
-    if cmd_rec_last:
-        cmd_rec_last_tlm, cmd_rec_last_nn, _, _ = get_bytes_from_int(cmd_rec_last[0])
-        cmd_rec_last_val = int(get_float_from_2_words(cmd_rec_last[2], cmd_rec_last[1]))
-        return cmd_rec_last_tlm, cmd_rec_last_nn, cmd_rec_last_val
-    else:
-        return None, None, None
+def get_last_command(client: Snap7Client | SelfModbusTcpClient):
+    if client_type == ClientTypes.MODBUS:
+        cmd_rec_last = client.read_holding_registers(
+            PlcAddressBlockConstants.CMD_DATA_BLOCKS_REC_LAST_ADDRESS, 3
+        )
+        if cmd_rec_last:
+            cmd_rec_last_tlm, cmd_rec_last_nn, _, _ = get_bytes_from_int(cmd_rec_last[0])
+            cmd_rec_last_val = int(get_float_from_2_words(cmd_rec_last[2], cmd_rec_last[1]))
+            return cmd_rec_last_tlm, cmd_rec_last_nn, cmd_rec_last_val
+        else:
+            return None, None, None
+    elif client_type == ClientTypes.SIMATIC:
+        cmd_rec_last = client.read_array_of_words(
+            PlcAddressBlockConstants.CMD_DATA_BLOCK,
+            PlcAddressBlockConstants.CMD_DATA_BLOCKS_REC_LAST_ADDRESS,
+            3
+        )
+        if cmd_rec_last:
+            cmd_rec_last_nn,cmd_rec_last_tlm, _, _ = get_bytes_from_int(cmd_rec_last[0])
+            cmd_rec_last_val = int(get_float_from_2_words(cmd_rec_last[1], cmd_rec_last[2]))
+            return cmd_rec_last_tlm, cmd_rec_last_nn, cmd_rec_last_val
+        else:
+            return None, None, None
+    # if cmd_rec_last:
+    #     cmd_rec_last_tlm, cmd_rec_last_nn, _, _ = get_bytes_from_int(cmd_rec_last[0])
+    #     cmd_rec_last_val = int(get_float_from_2_words(cmd_rec_last[2], cmd_rec_last[1]))
+    #     return cmd_rec_last_tlm, cmd_rec_last_nn, cmd_rec_last_val
+    # else:
+    #     return None, None, None
     
-def get_param_active_plc(client):
+def get_param_active_plc(client: Snap7Client | SelfModbusTcpClient):
     """Получение флага активного ПЛК на текущий момент в резервной паре."""
-    raw_data_active_plc_1 = client.read_holding_registers(PlcAddressBlockConstants.PLC_1_TAG_MAIN_ADDRESS, 2)
-    raw_data_active_plc_2 = client.read_holding_registers(PlcAddressBlockConstants.PLC_2_TAG_MAIN_ADDRESS, 2)
+    if client_type == ClientTypes.MODBUS:
+        raw_data_active_plc_1 = client.read_holding_registers(PlcAddressBlockConstants.PLC_1_TAG_MAIN_ADDRESS, 2)
+        raw_data_active_plc_2 = client.read_holding_registers(PlcAddressBlockConstants.PLC_2_TAG_MAIN_ADDRESS, 2)
+        active_plc_1 = int(get_float_from_2_words(raw_data_active_plc_1[1], raw_data_active_plc_1[0]))
+        active_plc_2 = int(get_float_from_2_words(raw_data_active_plc_2[1], raw_data_active_plc_2[0]))          
+    elif client_type == ClientTypes.SIMATIC:
+        raw_data_active_plc_1 = 0 #client.read_by_type(PlcAddressBlockConstants.CMD_DATA_BLOCK,
+                                  #                  PlcAddressBlockConstants.PLC_1_TAG_MAIN_ADDRESS, 
+                                  #                  DataTypes.INT)
+        raw_data_active_plc_2 = 0 #client.read_real(PlcAddressBlockConstants.CMD_DATA_BLOCK,
+                                  #               PlcAddressBlockConstants.PLC_2_TAG_MAIN_ADDRESS,
+                                  #               DataTypes.INT)
+        active_plc_1 = 0
+        active_plc_2 = 0
     # print(f" raw_data_active_plc_1 = {raw_data_active_plc_1}, raw_data_active_plc_2: {raw_data_active_plc_2}")
-    active_plc_1 = int(get_float_from_2_words(raw_data_active_plc_1[1], raw_data_active_plc_1[0]))
-    active_plc_2 = int(get_float_from_2_words(raw_data_active_plc_2[1], raw_data_active_plc_2[0]))    
+  
     if active_plc_1 == active_plc_2:
         return 0 # None
     elif active_plc_1 == 1:
@@ -122,7 +154,7 @@ def get_param_active_plc(client):
     else:
         return 2
 
-def get_active_client(clients:list[SelfModbusTcpClient]):
+def get_active_client(clients:list[Snap7Client | SelfModbusTcpClient]):
     """Получение активного клиента в резервной паре."""
     for num, client in enumerate(clients):
         try:
@@ -197,16 +229,29 @@ def get_sending_data(sending_data, sending_data_additional, telegram, cmd_rec_la
 
     return sending_data, sending_data_additional, rec_last_value_for_writing, idle_data
 
-def send_wd_to_plc(client):
-    wd = client.read_holding_registers(
-        PlcAddressBlockConstants.RETURN_DATA_BLOCKS_WD_ADDRESS, 2
-    )
-    client.write_holding_registers(
-        PlcAddressBlockConstants.CMD_DATA_BLOCKS_WD_ADDRESS, wd
-    )
+def send_wd_to_plc(client: Snap7Client | SelfModbusTcpClient):
+    if client_type == ClientTypes.MODBUS:
+        wd = client.read_holding_registers(
+            PlcAddressBlockConstants.RETURN_DATA_BLOCKS_WD_ADDRESS, 2
+        )
+        client.write_holding_registers(
+            PlcAddressBlockConstants.CMD_DATA_BLOCKS_WD_ADDRESS, wd
+        )
+    elif client_type == ClientTypes.SIMATIC:
+        wd = client.read_by_type(
+            PlcAddressBlockConstants.RETURN_DATA_BLOCK,
+            PlcAddressBlockConstants.RETURN_DATA_BLOCKS_WD_ADDRESS,
+            DataTypes.DWORD
+        )
+        client.write_by_type(
+            PlcAddressBlockConstants.CMD_DATA_BLOCK,
+            PlcAddressBlockConstants.CMD_DATA_BLOCKS_WD_ADDRESS, 
+            wd, 
+            DataTypes.DWORD
+        )
     time.sleep(0.2)
 
-def read_response_from_plc(client, response_bad_data, download, return_block, prev_return_rec_last):
+def read_response_from_plc(client: Snap7Client | SelfModbusTcpClient, response_bad_data, download, return_block, prev_return_rec_last):
     time_fix = time.time()
     response_ready = False
     tlm_data = {}
@@ -220,9 +265,16 @@ def read_response_from_plc(client, response_bad_data, download, return_block, pr
         if time.time() - time_fix < CommandInterfaceConstants.RESPONSE_TIMEOUT:
             # print(f"Время ожидания: {(time.time()-time_fix):.2f}")
             time.sleep(0.1)
-            rec_last = client.read_holding_registers(
-                PlcAddressBlockConstants.RETURN_DATA_BLOCKS_REC_LAST_ADDRESS, 3
-            )
+            if client_type == ClientTypes.MODBUS: 
+                rec_last = client.read_holding_registers(
+                    PlcAddressBlockConstants.RETURN_DATA_BLOCKS_REC_LAST_ADDRESS, 3
+                )
+            elif client_type == ClientTypes.SIMATIC:
+                rec_last = client.read_array_of_words(
+                    PlcAddressBlockConstants.RETURN_DATA_BLOCK,
+                    PlcAddressBlockConstants.RETURN_DATA_BLOCKS_REC_LAST_ADDRESS,
+                    3
+                )
             if rec_last != prev_return_rec_last and (rec_last and (rec_last[1] != 0 or rec_last[2] != 0)):
                 print(
                     "RETURN_DATA_BLOCKS_REC_LAST = ",
@@ -235,11 +287,17 @@ def read_response_from_plc(client, response_bad_data, download, return_block, pr
                 )
 
                 # time.sleep(0.1)
-                return_records = client.read_holding_registers(
-                    PlcAddressBlockConstants.RETURN_DATA_BLOCKS_REC_ADDRESS,
-                    cmd_rec_last_val * PlcAddressBlockConstants.REC_LENGTH,
-                )
-
+                if client_type == ClientTypes.MODBUS:
+                    return_records = client.read_holding_registers(
+                        PlcAddressBlockConstants.RETURN_DATA_BLOCKS_REC_ADDRESS,
+                        cmd_rec_last_val * PlcAddressBlockConstants.REC_LENGTH,
+                    )
+                elif client_type == ClientTypes.SIMATIC:
+                    return_records = client.read_array_of_words(
+                        PlcAddressBlockConstants.RETURN_DATA_BLOCK,
+                        PlcAddressBlockConstants.RETURN_DATA_BLOCKS_REC_ADDRESS,
+                        cmd_rec_last_val * PlcAddressBlockConstants.REC_LENGTH,
+                    )
                 prev_tlm = None
                 # разбираем весь буфер, который получили
                 for item_num in range(0, len(return_records), 3):
@@ -321,7 +379,7 @@ def send_data_to_plc(plc_id, data, object_type, handler_class=None, download=Non
         return [{"error_num": "Не найден активный ПЛК!" if not client else "TIMEOUT", "index_num": None, "param_num": None}] 
 
     # Получаем значения REC_LAST,чтобы понять с какого адреса писать
-    print(client.client.connected)
+    #print(client.client.connected)
     cmd_rec_last_tlm, cmd_rec_last_nn, cmd_rec_last_val = get_last_command(client)
 
     if None in [cmd_rec_last_tlm, cmd_rec_last_nn, cmd_rec_last_val]:
@@ -366,11 +424,16 @@ def send_data_to_plc(plc_id, data, object_type, handler_class=None, download=Non
             # помещаем этот блок в telegram, который будет расширен
             # следующей записью
             telegram = idle_data
-
+            # if client_type == ClientTypes.MODBUS:
             sending_data["start_address"] = int(
                 (cmd_rec_last_val + 1) * PlcAddressBlockConstants.REC_LENGTH
                 + PlcAddressBlockConstants.CMD_DATA_BLOCKS_REC_ADDRESS
             )
+            # elif client_type == ClientTypes.SIMATIC:
+            #     sending_data["start_address"] = int(
+            #         (cmd_rec_last_val + 1) * PlcAddressBlockConstants.REC_LENGTH
+            #         + PlcAddressBlockConstants.CMD_DATA_BLOCKS_REC_ADDRESS
+            #     )
 
             rec_last_value_for_writing += len(idle_data) / 3
             rec_last_value_for_writing = rec_last_value_for_writing - (
@@ -390,10 +453,17 @@ def send_data_to_plc(plc_id, data, object_type, handler_class=None, download=Non
             rec_last_value_for_writing,
             current_item,
             idle_data)
-
-        prev_return_rec_last = client.read_holding_registers(
-            PlcAddressBlockConstants.RETURN_DATA_BLOCKS_REC_LAST_ADDRESS, 3
-        )
+        
+        if client_type == ClientTypes.MODBUS:
+            prev_return_rec_last = client.read_holding_registers(
+                PlcAddressBlockConstants.RETURN_DATA_BLOCKS_REC_LAST_ADDRESS, 3
+            )
+        elif client_type == ClientTypes.SIMATIC:
+            prev_return_rec_last = client.read_array_of_words(
+                PlcAddressBlockConstants.RETURN_DATA_BLOCK,
+                PlcAddressBlockConstants.RETURN_DATA_BLOCKS_REC_LAST_ADDRESS,
+                3
+            )
         print('Sending new array of data...')
         # Если последний ключ обраотан, либо список ожидания заполнен (значит весь буфер забит уже), пишем в ПЛК
         if (
@@ -411,17 +481,26 @@ def send_data_to_plc(plc_id, data, object_type, handler_class=None, download=Non
                     (cmd_rec_last_val + 1) * PlcAddressBlockConstants.REC_LENGTH
                     + PlcAddressBlockConstants.CMD_DATA_BLOCKS_REC_ADDRESS
                 )
-
-            client.write_holding_registers(
-                sending_data["start_address"], sending_data["data"]
-            )
-
-            if sending_data_additional and sending_data_additional.get("data"):
+            if client_type == ClientTypes.MODBUS:
                 client.write_holding_registers(
-                    sending_data_additional["start_address"],
-                    sending_data_additional["data"],
+                    sending_data["start_address"], sending_data["data"]
+                )
+            elif client_type == ClientTypes.SIMATIC:
+                client.write_array_of_words(PlcAddressBlockConstants.CMD_DATA_BLOCK,
+                    sending_data["start_address"], sending_data["data"]
                 )
 
+            if sending_data_additional and sending_data_additional.get("data"):
+                if client_type == ClientTypes.MODBUS:
+                    client.write_holding_registers(
+                        sending_data_additional["start_address"],
+                        sending_data_additional["data"],
+                    )
+                elif client_type == ClientTypes.SIMATIC:
+                    client.write_array_of_words(PlcAddressBlockConstants.CMD_DATA_BLOCKS,
+                        sending_data_additional["start_address"],
+                        sending_data_additional["data"],
+                    )
             # time.sleep(0.5)
             # делаем паузу для отправки REC_LAST
 
@@ -450,9 +529,17 @@ def send_data_to_plc(plc_id, data, object_type, handler_class=None, download=Non
             )
             # temp_rec_last = [cmd_1, cmd_2, get_float_from_2_words(word2[0], word2[1])]
             # print('Rec_Last = ', temp_rec_last)
-            client.write_holding_registers(
-                PlcAddressBlockConstants.CMD_DATA_BLOCKS_REC_LAST_ADDRESS, rec_last
-            )
+            if client_type == ClientTypes.MODBUS:
+                client.write_holding_registers(
+                    PlcAddressBlockConstants.CMD_DATA_BLOCKS_REC_LAST_ADDRESS, 
+                    rec_last
+                )
+            elif client_type == ClientTypes.SIMATIC:
+                client.write_array_of_words(
+                    PlcAddressBlockConstants.CMD_DATA_BLOCK,
+                    PlcAddressBlockConstants.CMD_DATA_BLOCKS_REC_LAST_ADDRESS, 
+                    rec_last
+                )
 
             sending_data["data"] = []
             sending_data_additional = None
