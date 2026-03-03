@@ -92,11 +92,14 @@ def get_float_from_2_words(*words):
     return struct.unpack("f", struct.pack("HH", word2, word1))[0]
 
 
-def add_telegram(current_item, tlm_num, telegram):
+def add_telegram(current_item, tlm_num, telegram, client_type):
     """Расширение телеграммы."""
     for item in current_item:
         word2 = get_2_words_from_float(item[1])
-        telegram.extend([get_int_from_bytes(item[0], tlm_num), word2[1], word2[0]])
+        if client_type == ClientTypes.MODBUS: 
+            telegram.extend([get_int_from_bytes(item[0], tlm_num), word2[1], word2[0]])
+        elif client_type == ClientTypes.SIMATIC:
+            telegram.extend([get_int_from_bytes(tlm_num, item[0]), word2[0], word2[1]])
     return telegram
 
 def get_last_command(client: Snap7Client | SelfModbusTcpClient):
@@ -122,6 +125,7 @@ def get_last_command(client: Snap7Client | SelfModbusTcpClient):
             return cmd_rec_last_tlm, cmd_rec_last_nn, cmd_rec_last_val
         else:
             return None, None, None
+
     # if cmd_rec_last:
     #     cmd_rec_last_tlm, cmd_rec_last_nn, _, _ = get_bytes_from_int(cmd_rec_last[0])
     #     cmd_rec_last_val = int(get_float_from_2_words(cmd_rec_last[2], cmd_rec_last[1]))
@@ -270,11 +274,12 @@ def read_response_from_plc(client: Snap7Client | SelfModbusTcpClient, response_b
                     PlcAddressBlockConstants.RETURN_DATA_BLOCKS_REC_LAST_ADDRESS, 3
                 )
             elif client_type == ClientTypes.SIMATIC:
-                rec_last = client.read_array_of_words(
-                    PlcAddressBlockConstants.RETURN_DATA_BLOCK,
-                    PlcAddressBlockConstants.RETURN_DATA_BLOCKS_REC_LAST_ADDRESS,
-                    3
-                )
+                # rec_last = client.read_array_of_words(
+                #     PlcAddressBlockConstants.RETURN_DATA_BLOCK,
+                #     PlcAddressBlockConstants.RETURN_DATA_BLOCKS_REC_LAST_ADDRESS,
+                #     3
+                # )
+                rec_last = get_last_command(client)
             if rec_last != prev_return_rec_last and (rec_last and (rec_last[1] != 0 or rec_last[2] != 0)):
                 print(
                     "RETURN_DATA_BLOCKS_REC_LAST = ",
@@ -282,9 +287,13 @@ def read_response_from_plc(client: Snap7Client | SelfModbusTcpClient, response_b
                     rec_last[1],
                     rec_last[2],
                 )
-                cmd_rec_last_val = int(
-                    get_float_from_2_words(rec_last[2], rec_last[1])
-                )
+                if client_type == ClientTypes.MODBUS:
+                    cmd_rec_last_val = int(
+                        get_float_from_2_words(rec_last[2], rec_last[1])
+                    )
+                elif client_type == ClientTypes.SIMATIC:
+                    cmd_rec_last_val = int(rec_last[2])
+                    
 
                 # time.sleep(0.1)
                 if client_type == ClientTypes.MODBUS:
@@ -381,7 +390,7 @@ def send_data_to_plc(plc_id, data, object_type, handler_class=None, download=Non
     # Получаем значения REC_LAST,чтобы понять с какого адреса писать
     #print(client.client.connected)
     cmd_rec_last_tlm, cmd_rec_last_nn, cmd_rec_last_val = get_last_command(client)
-
+    
     if None in [cmd_rec_last_tlm, cmd_rec_last_nn, cmd_rec_last_val]:
         return [{"error_num": "TIMEOUT", "index_num": None, "param_num": None}]
 
@@ -392,7 +401,8 @@ def send_data_to_plc(plc_id, data, object_type, handler_class=None, download=Non
         rec_last_value_for_writing = (
             cmd_rec_last_val
         )
-        cmd_rec_last_val -= 1
+        if client_type == ClientTypes.MODBUS:
+            cmd_rec_last_val -= 1
 
     tlm_num = cmd_rec_last_tlm
     data_key_list = list(data.keys())
@@ -436,12 +446,13 @@ def send_data_to_plc(plc_id, data, object_type, handler_class=None, download=Non
             #     )
 
             rec_last_value_for_writing += len(idle_data) / 3
+
             rec_last_value_for_writing = rec_last_value_for_writing - (
                 (rec_last_value_for_writing // 255) * 255
             )
             idle_data = []
 
-        telegram = add_telegram(current_item, tlm_num, telegram)
+        telegram = add_telegram(current_item, tlm_num, telegram, client_type)
 
         response_bad_data[tlm_num] = {"data": current_item}
         # print('Rec = ',current_item)
@@ -497,7 +508,7 @@ def send_data_to_plc(plc_id, data, object_type, handler_class=None, download=Non
                         sending_data_additional["data"],
                     )
                 elif client_type == ClientTypes.SIMATIC:
-                    client.write_array_of_words(PlcAddressBlockConstants.CMD_DATA_BLOCKS,
+                    client.write_array_of_words(PlcAddressBlockConstants.CMD_DATA_BLOCK,
                         sending_data_additional["start_address"],
                         sending_data_additional["data"],
                     )
@@ -509,17 +520,28 @@ def send_data_to_plc(plc_id, data, object_type, handler_class=None, download=Non
                 if rec_last_value_for_writing <= 254
                 else (rec_last_value_for_writing - 255)
             )
-
+            # if client_type == ClientTypes.MODBUS:
+            word2_ord = {ClientTypes.MODBUS: [word2[1],word2[0]],
+                         ClientTypes.SIMATIC: [word2[0],word2[1]]}
             rec_last = [
                 (
                     sending_data["data"][-3]
                     if not sending_data_additional
                     or not sending_data_additional.get("data")
                     else sending_data_additional["data"][-3]
-                ),
-                word2[1],
-                word2[0],
+                )
             ]
+            rec_last.extend(word2_ord.get(client_type))
+            # rec_last = [
+            #     (
+            #         sending_data["data"][-3]
+            #         if not sending_data_additional
+            #         or not sending_data_additional.get("data")
+            #         else sending_data_additional["data"][-3]
+            #     ),
+            #     word2[1],
+            #     word2[0],
+            # ]
 
             cmd_1, cmd_2, _, _ = get_bytes_from_int(
                 sending_data["data"][-3]

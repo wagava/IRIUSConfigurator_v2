@@ -286,7 +286,7 @@ SIMPLE_JWT = {
 
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True  # удалить cookie-файл сессии при закрытии страницы или всего браузера
 
-SESSION_COOKIE_AGE = 900  # Время жизни сессии в секундах (например, 1800 секунд = 30 минут)
+#SESSION_COOKIE_AGE = 900  # Время жизни сессии в секундах (например, 1800 секунд = 30 минут)
 # SESSION_EXPIRE_AT_BROWSER_CLOSE = False  # Отключение постоянной сессии — автоматически завершать её при истечении срока
 SESSION_SAVE_EVERY_REQUEST = True
 
