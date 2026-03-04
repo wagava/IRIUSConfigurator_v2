@@ -119,7 +119,8 @@ class PlcAddressBlockConstants:
     командного интерфейса ПЛК
     """
 
-    REC_LENGTH = 6 # 3
+    REC_LENGTH = 3
+    REC_LENGTH_IN_BYTE = 6 # 3
     MODBUS_PACKET_MAX_LENTGH = 120
 
     # Первый поток

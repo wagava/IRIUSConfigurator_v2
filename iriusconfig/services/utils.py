@@ -132,7 +132,31 @@ def get_last_command(client: Snap7Client | SelfModbusTcpClient):
     #     return cmd_rec_last_tlm, cmd_rec_last_nn, cmd_rec_last_val
     # else:
     #     return None, None, None
-    
+
+def get_return_rec_last_command(client: Snap7Client | SelfModbusTcpClient):
+    if client_type == ClientTypes.MODBUS:
+        cmd_rec_last = client.read_holding_registers(
+            PlcAddressBlockConstants.RETURN_DATA_BLOCKS_REC_LAST_ADDRESS, 3
+        )
+        if cmd_rec_last:
+            cmd_rec_last_tlm, cmd_rec_last_nn, _, _ = get_bytes_from_int(cmd_rec_last[0])
+            cmd_rec_last_val = int(get_float_from_2_words(cmd_rec_last[2], cmd_rec_last[1]))
+            return cmd_rec_last_tlm, cmd_rec_last_nn, cmd_rec_last_val
+        else:
+            return None, None, None
+    elif client_type == ClientTypes.SIMATIC:
+        cmd_rec_last = client.read_array_of_words(
+            PlcAddressBlockConstants.RETURN_DATA_BLOCK,
+            PlcAddressBlockConstants.RETURN_DATA_BLOCKS_REC_LAST_ADDRESS,
+            3
+        )
+        if cmd_rec_last:
+            cmd_rec_last_nn,cmd_rec_last_tlm, _, _ = get_bytes_from_int(cmd_rec_last[0])
+            cmd_rec_last_val = int(get_float_from_2_words(cmd_rec_last[1], cmd_rec_last[2]))
+            return cmd_rec_last_tlm, cmd_rec_last_nn, cmd_rec_last_val
+        else:
+            return None, None, None
+
 def get_param_active_plc(client: Snap7Client | SelfModbusTcpClient):
     """Получение флага активного ПЛК на текущий момент в резервной паре."""
     if client_type == ClientTypes.MODBUS:
@@ -181,7 +205,8 @@ def get_sending_data(sending_data, sending_data_additional, telegram, cmd_rec_la
 
         block_length = len(sending_data["data"]) + len(telegram)
 
-        compare_value = (255 - (cmd_rec_last_val + 1)) * 3
+        # compare_value = (255 - (cmd_rec_last_val + 1)) * 3
+        compare_value = (256 - (cmd_rec_last_val + 1)) * 3
         if block_length <= compare_value:
             # Если вмещается телеграмма, то добавляем
             if sending_data.get("data"):
@@ -193,9 +218,11 @@ def get_sending_data(sending_data, sending_data_additional, telegram, cmd_rec_la
             # Проверяем, вместится ли она с переходом на начало буфера
             # Если вмещается, то добавляем, иначе пишем данные в ожидаемый список
 
-            if block_length <= 255 * 3:
+            # if block_length <= 255 * 3:
+            if block_length <= 256 * 3:
 
-                before_256 = (255 - (cmd_rec_last_val + 1)) * 3
+                # before_256 = (255 - (cmd_rec_last_val + 1)) * 3
+                before_256 = (256 - (cmd_rec_last_val + 1)) * 3
                 num = int(
                     before_256 - len(sending_data["data"])
                 )  # сколько нужно добрать
@@ -215,7 +242,8 @@ def get_sending_data(sending_data, sending_data_additional, telegram, cmd_rec_la
                 rec_last_value_for_writing = (
                     (rec_last_value_for_writing - len(current_item))
                     if rec_last_value_for_writing > len(current_item)
-                    else 255 + rec_last_value_for_writing - len(current_item)
+                    # else 255 + rec_last_value_for_writing - len(current_item)
+                    else 256 + rec_last_value_for_writing - len(current_item)
                 )
     else:
         # Уже распечатали sending_data_additional
@@ -224,11 +252,12 @@ def get_sending_data(sending_data, sending_data_additional, telegram, cmd_rec_la
             sending_data_additional["data"].extend(telegram)
         else:
             idle_data = telegram  # записываем в лист ожидания телеграмму, для следующей итерации записи
-            compare_value = len(telegram) / PlcAddressBlockConstants.REC_LENGTH
+            compare_value = len(telegram) / PlcAddressBlockConstants.REC_LENGTH_IN_BYTE
             rec_last_value_for_writing = (
                 rec_last_value_for_writing - compare_value
                 if rec_last_value_for_writing > compare_value
-                else (255 + rec_last_value_for_writing) - compare_value
+                # else (255 + rec_last_value_for_writing) - compare_value
+                else (256 + rec_last_value_for_writing) - compare_value
             )
 
     return sending_data, sending_data_additional, rec_last_value_for_writing, idle_data
@@ -279,7 +308,7 @@ def read_response_from_plc(client: Snap7Client | SelfModbusTcpClient, response_b
                 #     PlcAddressBlockConstants.RETURN_DATA_BLOCKS_REC_LAST_ADDRESS,
                 #     3
                 # )
-                rec_last = get_last_command(client)
+                rec_last = get_return_rec_last_command(client)
             if rec_last != prev_return_rec_last and (rec_last and (rec_last[1] != 0 or rec_last[2] != 0)):
                 print(
                     "RETURN_DATA_BLOCKS_REC_LAST = ",
@@ -292,32 +321,42 @@ def read_response_from_plc(client: Snap7Client | SelfModbusTcpClient, response_b
                         get_float_from_2_words(rec_last[2], rec_last[1])
                     )
                 elif client_type == ClientTypes.SIMATIC:
-                    cmd_rec_last_val = int(rec_last[2])
+                    # cmd_rec_last_val = int(rec_last[2])
+                    cmd_rec_ln =  rec_last[1]
                     
 
                 # time.sleep(0.1)
                 if client_type == ClientTypes.MODBUS:
                     return_records = client.read_holding_registers(
                         PlcAddressBlockConstants.RETURN_DATA_BLOCKS_REC_ADDRESS,
-                        cmd_rec_last_val * PlcAddressBlockConstants.REC_LENGTH,
+                        cmd_rec_last_val * PlcAddressBlockConstants.REC_LENGTH_IN_BYTE,
                     )
                 elif client_type == ClientTypes.SIMATIC:
                     return_records = client.read_array_of_words(
                         PlcAddressBlockConstants.RETURN_DATA_BLOCK,
                         PlcAddressBlockConstants.RETURN_DATA_BLOCKS_REC_ADDRESS,
-                        cmd_rec_last_val * PlcAddressBlockConstants.REC_LENGTH,
+                        cmd_rec_ln * PlcAddressBlockConstants.REC_LENGTH,
                     )
                 prev_tlm = None
                 # разбираем весь буфер, который получили
                 for item_num in range(0, len(return_records), 3):
-                    cmd_rec_tlm, cmd_rec_nn, _, _ = get_bytes_from_int(
-                        return_records[item_num]
-                    )
-
-                    cmd_rec_val = get_float_from_2_words(
-                        return_records[item_num + 2],
-                        return_records[item_num + 1],
-                    )
+                    if client_type == ClientTypes.MODBUS:
+                        cmd_rec_tlm, cmd_rec_nn, _, _ = get_bytes_from_int(
+                            return_records[item_num]
+                        )
+                        cmd_rec_val = get_float_from_2_words(
+                            return_records[item_num + 2],
+                            return_records[item_num + 1],
+                        )
+                    elif client_type == ClientTypes.SIMATIC:
+                        cmd_rec_nn, cmd_rec_tlm, _, _ = get_bytes_from_int(
+                            return_records[item_num]
+                        )
+                        cmd_rec_val = get_float_from_2_words(
+                            return_records[item_num + 1],
+                            return_records[item_num + 2],
+                        )
+                   
 
                     if not cmd_rec_tlm or cmd_rec_tlm != prev_tlm:
                         tlm_data[cmd_rec_tlm] = {cmd_rec_nn: cmd_rec_val}
@@ -396,13 +435,15 @@ def send_data_to_plc(plc_id, data, object_type, handler_class=None, download=Non
 
     if cmd_rec_last_tlm == 0 and cmd_rec_last_nn == 0 and cmd_rec_last_val == 0:
         rec_last_value_for_writing = 0
-        cmd_rec_last_val = -1
+        if client_type == ClientTypes.MODBUS:
+            cmd_rec_last_val = -1
     else:
         rec_last_value_for_writing = (
             cmd_rec_last_val
         )
         if client_type == ClientTypes.MODBUS:
             cmd_rec_last_val -= 1
+        #cmd_rec_last_val -= 1
 
     tlm_num = cmd_rec_last_tlm
     data_key_list = list(data.keys())
@@ -420,10 +461,13 @@ def send_data_to_plc(plc_id, data, object_type, handler_class=None, download=Non
         if idle_data:
             cmd_rec_last_val = rec_last_value_for_writing - 1
         rec_last_value_for_writing += len(current_item) if current_item else 0
-        rec_last_value_for_writing = rec_last_value_for_writing - (
-            (rec_last_value_for_writing // 255) * 255
-        )
-        tlm_num = tlm_num + 1 if tlm_num <= 254 and tlm_num >= 0 else 1
+        # rec_last_value_for_writing = rec_last_value_for_writing - (
+        #     (rec_last_value_for_writing // 255) * 255
+        # )
+        rec_last_value_for_writing = rec_last_value_for_writing % 256
+        
+        # tlm_num = tlm_num + 1 if tlm_num <= 254 and tlm_num >= 0 else 1
+        tlm_num = tlm_num + 1 if tlm_num <= 255 and tlm_num >= 0 else 1
         tlm_send += 1
         telegram = []
 
@@ -436,7 +480,7 @@ def send_data_to_plc(plc_id, data, object_type, handler_class=None, download=Non
             telegram = idle_data
             # if client_type == ClientTypes.MODBUS:
             sending_data["start_address"] = int(
-                (cmd_rec_last_val + 1) * PlcAddressBlockConstants.REC_LENGTH
+                (cmd_rec_last_val + 1) * PlcAddressBlockConstants.REC_LENGTH_IN_BYTE
                 + PlcAddressBlockConstants.CMD_DATA_BLOCKS_REC_ADDRESS
             )
             # elif client_type == ClientTypes.SIMATIC:
@@ -448,8 +492,11 @@ def send_data_to_plc(plc_id, data, object_type, handler_class=None, download=Non
             rec_last_value_for_writing += len(idle_data) / 3
 
             rec_last_value_for_writing = rec_last_value_for_writing - (
-                (rec_last_value_for_writing // 255) * 255
+                (rec_last_value_for_writing // 256) * 256
             )
+            # rec_last_value_for_writing = rec_last_value_for_writing - (
+            #     (rec_last_value_for_writing // 255) * 255
+            # )
             idle_data = []
 
         telegram = add_telegram(current_item, tlm_num, telegram, client_type)
@@ -489,7 +536,7 @@ def send_data_to_plc(plc_id, data, object_type, handler_class=None, download=Non
                 # (Последний блок записи*длину блока(2 байта и один реал = 3 ворда)
                 # и добавляем смещение от нуля, откуда начинаются блоки для записи)
                 sending_data["start_address"] = (
-                    (cmd_rec_last_val + 1) * PlcAddressBlockConstants.REC_LENGTH
+                    (cmd_rec_last_val + 1) * PlcAddressBlockConstants.REC_LENGTH_IN_BYTE
                     + PlcAddressBlockConstants.CMD_DATA_BLOCKS_REC_ADDRESS
                 )
             if client_type == ClientTypes.MODBUS:
@@ -515,10 +562,15 @@ def send_data_to_plc(plc_id, data, object_type, handler_class=None, download=Non
             # time.sleep(0.5)
             # делаем паузу для отправки REC_LAST
 
+            # word2 = get_2_words_from_float(
+            #     rec_last_value_for_writing
+            #     if rec_last_value_for_writing <= 254
+            #     else (rec_last_value_for_writing - 255)
+            # )
             word2 = get_2_words_from_float(
                 rec_last_value_for_writing
-                if rec_last_value_for_writing <= 254
-                else (rec_last_value_for_writing - 255)
+                if rec_last_value_for_writing <= 255
+                else (rec_last_value_for_writing - 256)
             )
             # if client_type == ClientTypes.MODBUS:
             word2_ord = {ClientTypes.MODBUS: [word2[1],word2[0]],
@@ -614,32 +666,42 @@ def parse_error_data(data, bad_data, download, object_type):
             # if object_type == GlobalObjectID.VARIABLE:
             #     cnfVariable.objects.filter()
         else:
-            if item[2] not in (
-                PlcCommandConstants.RETURN_CMD_READ_EQUIPMENT_CONFIG,
-                PlcCommandConstants.RETURN_CMD_READ_EQUIPMENT_LINK_EQ_CONFIG,
-                PlcCommandConstants.RETURN_CMD_READ_EQUIPMENT_LINK_PID_CONFIG,
-                PlcCommandConstants.RETURN_CMD_READ_EQUIPMENT_LINK_VDB_CONFIG,
-                PlcCommandConstants.RETURN_CMD_READ_EQUIPMENT_SEQ1_CONFIG,
-                PlcCommandConstants.RETURN_CMD_READ_EQUIPMENT_SEQ2_CONFIG,
-                PlcCommandConstants.RETURN_CMD_READ_EQUIPMENT_SEQ3_CONFIG,
-                PlcCommandConstants.RETURN_CMD_READ_EQUIPMENT_SEQ4_CONFIG,
-            ):
-                if upload_data:
-                    upload_data.append(
-                        {
-                            "error_num": cmd_data.get(item[2]),
-                            "index_num": f"телеграмма {item[3]}",
-                            "param_num": "None",
-                        }
-                    )
-                else:
-                    upload_data = [
-                        {
-                            "error_num": cmd_data.get(item[2]),
-                            "index_num": f"телеграмма {item[3]}",
-                            "param_num": "None",
-                        }
-                    ]
+            try:
+                if item[2] not in (
+                    PlcCommandConstants.RETURN_CMD_READ_EQUIPMENT_CONFIG,
+                    PlcCommandConstants.RETURN_CMD_READ_EQUIPMENT_LINK_EQ_CONFIG,
+                    PlcCommandConstants.RETURN_CMD_READ_EQUIPMENT_LINK_PID_CONFIG,
+                    PlcCommandConstants.RETURN_CMD_READ_EQUIPMENT_LINK_VDB_CONFIG,
+                    PlcCommandConstants.RETURN_CMD_READ_EQUIPMENT_SEQ1_CONFIG,
+                    PlcCommandConstants.RETURN_CMD_READ_EQUIPMENT_SEQ2_CONFIG,
+                    PlcCommandConstants.RETURN_CMD_READ_EQUIPMENT_SEQ3_CONFIG,
+                    PlcCommandConstants.RETURN_CMD_READ_EQUIPMENT_SEQ4_CONFIG,
+                ):
+                    if upload_data:
+                        upload_data.append(
+                            {
+                                "error_num": cmd_data.get(item[2]),
+                                "index_num": f"телеграмма {item[3]}",
+                                "param_num": "None",
+                            }
+                        )
+                    else:
+                        upload_data = [
+                            {
+                                "error_num": cmd_data.get(item[2]),
+                                "index_num": f"телеграмма {item[3]}",
+                                "param_num": "None",
+                            }
+                        ]
+            except Exception:
+                print('Некорректрный формат обратной связи!')
+                upload_data = [
+                            {
+                                "error_num": 'Некорректрный формат обратной связи!',
+                                "index_num": 'Некорректрный формат обратной связи!',
+                                "param_num": "None",
+                            }
+                        ]
     if not download:
         return data  # upload_data if upload_data else data
     return data
