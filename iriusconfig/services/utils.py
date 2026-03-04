@@ -309,7 +309,8 @@ def read_response_from_plc(client: Snap7Client | SelfModbusTcpClient, response_b
                 #     3
                 # )
                 rec_last = get_return_rec_last_command(client)
-            if rec_last != prev_return_rec_last and (rec_last and (rec_last[1] != 0 or rec_last[2] != 0)):
+            # if rec_last != prev_return_rec_last and (rec_last and (rec_last[1] != 0 or rec_last[2] != 0)): # Это только для модбаса
+            if rec_last != prev_return_rec_last and rec_last[2] != 0:
                 print(
                     "RETURN_DATA_BLOCKS_REC_LAST = ",
                     rec_last[0],
@@ -322,7 +323,7 @@ def read_response_from_plc(client: Snap7Client | SelfModbusTcpClient, response_b
                     )
                 elif client_type == ClientTypes.SIMATIC:
                     # cmd_rec_last_val = int(rec_last[2])
-                    cmd_rec_ln =  rec_last[1]
+                    cmd_rec_ln =  rec_last[2]
                     
 
                 # time.sleep(0.1)
