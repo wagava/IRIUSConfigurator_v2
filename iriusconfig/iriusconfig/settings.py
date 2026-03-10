@@ -22,9 +22,9 @@ PROD_DB_PORT = os.getenv("PROD_DB_PORT", default="5435")
 PLC_IP = os.getenv("PLC_IP", default="192.168.232.32")
 
 POSTGRES_USER = os.getenv("POSTGRES_USER", default="postgres")
-POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD", default="postgres")
+POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD", default="gAAAAABpnmV5T5ULtxhU4reBLXOwohIANWvW9_s0XI7C2ClkezLwt5amzBMng7m6X7-ggziVwwWdr987m3B7mm-ws86RhQu3iA==")
 
-P_KEY = os.getenv("P_KEY", default="key")
+P_KEY = os.getenv("P_KEY", default="s42LffvfK3OkpwCYs2PkhhQwzxhOOelDcwHy6HImlhA=")
 
 PLC_CLIENT_TYPE = os.getenv("PLC_CLIENT_TYPE", default="MODBUS")
 
@@ -102,7 +102,7 @@ WSGI_APPLICATION = "iriusconfig.wsgi.application"
 
 
 # pwd = decrypt_password(POSTGRES_PASSWORD.encode(), P_KEY.encode())
-
+print()
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",

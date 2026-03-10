@@ -133,7 +133,23 @@ def get_last_command(client: Snap7Client | SelfModbusTcpClient):
     # else:
     #     return None, None, None
 
+def get_return_buffer_last_command(client: Snap7Client | SelfModbusTcpClient):
+    if client_type == ClientTypes.SIMATIC:
+        cmd_buf_last = client.read_array_of_words(
+            PlcAddressBlockConstants.RETURN_DATA_BLOCK,
+            PlcAddressBlockConstants.RETURN_DATA_BLOCKS_BUFFER_LAST,
+            3
+        )
+        if cmd_buf_last:
+            cmd_buf_last_nn,cmd_buf_last_tlm, _, _ = get_bytes_from_int(cmd_buf_last[0])
+            cmd_buf_last_val = int(get_float_from_2_words(cmd_buf_last[1], cmd_buf_last[2]))
+            return cmd_buf_last_tlm, cmd_buf_last_nn, cmd_buf_last_val
+        else:
+            return None, None, None
+    return None, None, None        
+
 def get_return_rec_last_command(client: Snap7Client | SelfModbusTcpClient):
+    
     if client_type == ClientTypes.MODBUS:
         cmd_rec_last = client.read_holding_registers(
             PlcAddressBlockConstants.RETURN_DATA_BLOCKS_REC_LAST_ADDRESS, 3
@@ -145,6 +161,7 @@ def get_return_rec_last_command(client: Snap7Client | SelfModbusTcpClient):
         else:
             return None, None, None
     elif client_type == ClientTypes.SIMATIC:
+        print("Читаем RecLast")
         cmd_rec_last = client.read_array_of_words(
             PlcAddressBlockConstants.RETURN_DATA_BLOCK,
             PlcAddressBlockConstants.RETURN_DATA_BLOCKS_REC_LAST_ADDRESS,
@@ -270,7 +287,9 @@ def send_wd_to_plc(client: Snap7Client | SelfModbusTcpClient):
         client.write_holding_registers(
             PlcAddressBlockConstants.CMD_DATA_BLOCKS_WD_ADDRESS, wd
         )
+        # time.sleep(0.2)
     elif client_type == ClientTypes.SIMATIC:
+        print('Отправляется вотчдог')
         wd = client.read_by_type(
             PlcAddressBlockConstants.RETURN_DATA_BLOCK,
             PlcAddressBlockConstants.RETURN_DATA_BLOCKS_WD_ADDRESS,
@@ -282,7 +301,27 @@ def send_wd_to_plc(client: Snap7Client | SelfModbusTcpClient):
             wd, 
             DataTypes.DWORD
         )
+    print('Пауза 200 мсек...')
     time.sleep(0.2)
+
+def read_buffer_last_changing(client: Snap7Client | SelfModbusTcpClient) -> bool:
+    time_fix = time.time()
+    response_ready = False
+    print('Начинаем читать buffer_last')
+    while not response_ready:
+        if time.time() - time_fix < CommandInterfaceConstants.RESPONSE_TIMEOUT:
+            buffer_last = get_return_buffer_last_command(client)
+            print(f'buffer_last = {buffer_last}')
+            if buffer_last[2] != 0:
+                print('buffer_last > 0')
+                response_ready = True
+                break
+        else:
+            break
+    
+    return response_ready
+    
+
 
 def read_response_from_plc(client: Snap7Client | SelfModbusTcpClient, response_bad_data, download, return_block, prev_return_rec_last):
     time_fix = time.time()
@@ -294,6 +333,8 @@ def read_response_from_plc(client: Snap7Client | SelfModbusTcpClient, response_b
     
     return_timeout = False
     while not response_ready:
+        if client_type == ClientTypes.SIMATIC:
+            read_buffer_last_changing(client)
         send_wd_to_plc(client)
         if time.time() - time_fix < CommandInterfaceConstants.RESPONSE_TIMEOUT:
             # print(f"Время ожидания: {(time.time()-time_fix):.2f}")
@@ -311,6 +352,7 @@ def read_response_from_plc(client: Snap7Client | SelfModbusTcpClient, response_b
                 rec_last = get_return_rec_last_command(client)
             # if rec_last != prev_return_rec_last and (rec_last and (rec_last[1] != 0 or rec_last[2] != 0)): # Это только для модбаса
             if rec_last != prev_return_rec_last and rec_last[2] != 0:
+                print("RecLast изменился...")
                 print(
                     "RETURN_DATA_BLOCKS_REC_LAST = ",
                     rec_last[0],
@@ -407,7 +449,7 @@ def read_response_from_plc(client: Snap7Client | SelfModbusTcpClient, response_b
     prev_return_rec_last = rec_last
     return return_block, response_bad_data, return_timeout
 
-def send_data_to_plc(plc_id, data, object_type, handler_class=None, download=None):
+def send_data_to_plc(plc_id, data, object_type, handler_class=None, download=None, action: str | None = None):
     """
     Работа с ПЛК через командный интерфейс.
     """
@@ -499,9 +541,9 @@ def send_data_to_plc(plc_id, data, object_type, handler_class=None, download=Non
             #     (rec_last_value_for_writing // 255) * 255
             # )
             idle_data = []
-
+        print(f"Отправляется талеграмма: {current_item}")
         telegram = add_telegram(current_item, tlm_num, telegram, client_type)
-
+        
         response_bad_data[tlm_num] = {"data": current_item}
         # print('Rec = ',current_item)
         sending_data, sending_data_additional, rec_last_value_for_writing, idle_data = get_sending_data(
@@ -645,6 +687,7 @@ def send_data_to_plc(plc_id, data, object_type, handler_class=None, download=Non
         return_block = parse_error_data(
             return_block, response_bad_data, download=False, object_type=object_type
         )
+    print(f'Получена телеграмма: {return_block}')
     return return_block
 
 def parse_error_data(data, bad_data, download, object_type):

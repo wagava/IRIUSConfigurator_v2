@@ -146,6 +146,8 @@ class PlcAddressBlockConstants:
     RETURN_DATA_BLOCKS_REC_ADDRESS = 36 # 3018
     RETURN_DATA_BLOCK = 102
 
+    RETURN_DATA_BLOCKS_BUFFER_LAST = 30
+
     PLC_1_TAG_MAIN_ADDRESS=7265  # Адрес, где хранится значение переменной об активном контроллере №1. ПЛК1 - активный = 1
     PLC_2_TAG_MAIN_ADDRESS=7269  # Адрес, где хранится значение переменной об активном контроллере №2. ПЛК2 - активный = 2  
 

@@ -286,7 +286,47 @@
           }
       });
     });
+$("#btn_upload_save").on('click', function (e){
+      e.preventDefault();
+      let btn = $(this);
+      btn.attr("disabled", true);
+      $.ajax({
 
+          url: "{% url 'modules:upload_modules' view.kwargs.plc_id %}?min={{object.id}}&max={{object.id}}&action=upload_save",     
+
+          type: "GET",
+          //dataType: 'html',
+          success: function (data) {
+              btn.attr("disabled", false);
+              if (data) {
+                  console.log(data);
+                  console.log('выполнился success');
+                  if (data.return_block.length > 0)
+                  {
+                  var messages = ['При выполнении операции что-то пошло не так:\r\n\r\n'];
+                  //if (data.error_back == true)  
+                  //{
+                    //alert('выполнился success');
+                    console.log(data.return_block)
+                    //alert(data.error_back);                    
+                    for (var x=0; x<data.return_block.length; x++)
+                    {
+                      console.log(data.return_block[x])
+                      messages.push(data.return_block[x] + '\r\n\r\n')
+                    }
+                    alert(messages);
+                  }
+                  else
+                  {alert('Операция выполнена успешно!');}
+                  //}             
+                  // Add the http response to element
+                  //target_element.html(data);
+                  
+              }
+              
+          }
+      });
+    });
 
   </script>  
 

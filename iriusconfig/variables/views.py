@@ -322,7 +322,7 @@ def tags_update(request, plc_id):
                                     ](
                                         values_db[idx]
                                         if item == "Formula"
-                                        else float(values_db[idx])
+                                        else float(values_db[idx]) if values_db[idx] != '' else 0.0
                                     )
                                     if item_value:
 
@@ -354,8 +354,9 @@ def tags_update(request, plc_id):
                                                     else ""
                                                 ),
                                             )
-                            except Exception:
-                                print("error", item)
+                            except Exception as er:
+                                print("error", item, er)
+
                 # id_cw = (
                 #     cnfAttribute.objects.filter(
                 #         n_global_object_type=GlobalObjectID.VARIABLE,

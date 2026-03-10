@@ -440,6 +440,100 @@ def download_modules(request=None, plc_id=None, min=None, max=None, ajax=True):
     return {"error_back": return_block_errors}
     # return {"return_block": return_block_errors}
 
+def upload_module_save(plc_id, module_index, object_info, data) -> str:
+    """Обновление данных модуля из ПЛК в БД."""
+    # pass
+    records = []
+    records_to_create = []
+    module = cnfModule.objects.filter(
+                            n_module_index=module_index,
+                            n_controller=plc_id
+                        ).first()
+    if not module:
+        for item_key, item_value in data.items():
+            records_to_create.append(cnfModuleValue(
+                n_module=module,
+                n_attribute=cnfAttribute.objects.get(n_parameter_id=item_key,n_global_object_type=GlobalObjectID.MODULE),
+                f_value=item_value,
+                c_note="---",
+            ))
+        cnfModuleValue.objects.bulk_create(records_to_create)
+    else:
+
+        # object_info = (
+        #             cnfModuleValue.objects.select_related("n_module", "n_attribute")
+        #             .exclude(n_attribute__n_parameter_id=0)
+        #             .filter(
+        #                 n_module__n_module_index=module_index,
+        #                 n_module__n_controller_id=plc_id,
+        #             )
+        #         )
+
+        for item_key, item_value in data[0].items():
+            if item_key >= 5:  # До 5 индекса - это данные по телеграмме
+                attr = cnfAttribute.objects.get(n_parameter_id=item_key,n_global_object_type=GlobalObjectID.MODULE)
+                if not object_info:
+                    records_to_create.append(cnfModuleValue(
+                        n_module=module,
+                        n_attribute=attr,
+                        f_value=item_value,
+                        c_note="---",
+                    ))
+                else:
+                    item_found = False
+                    for item in object_info:
+                        if item.n_attribute.n_parameter_id == item_key:
+                            item_found = True
+                            records.append(
+                                    cnfModuleValue(
+                                        item.id,
+                                        n_module=module,
+                                        n_attribute=attr,
+                                        f_value=item_value,
+                                        c_note="---",
+                                    ))
+                            break
+                    if not item_found:
+                        records_to_create.append(cnfModuleValue(
+                            n_module=module,
+                            n_attribute=attr,
+                            f_value=item_value,
+                            c_note="---",
+                        ))
+                  
+
+            else:
+                pass
+     
+    if records:
+        cnfModuleValue.objects.bulk_update(records, ["f_value"])
+    if records_to_create:
+        cnfModuleValue.objects.bulk_create(records_to_create)
+    
+    return "Данные модуля обновлены."
+    # records = [
+    #         cnfModuleValue(
+    #             idx,
+    #             n_module=form.instance,
+    #             n_attribute=n_attribute,
+    #             f_value=f_value,
+    #             c_note="---",
+    #         )
+    #         for idx, f_value, n_attribute in prep_data
+    #     ]
+
+    # records_to_create = [
+    #         cnfModuleValue(
+    #             n_module=form.instance,
+    #             n_attribute=n_attribute,
+    #             f_value=f_value,
+    #             c_note="---",
+    #         )
+    #         for f_value, n_attribute in prep_data_create
+    #     ]
+
+    # cnfModuleValue.objects.bulk_update(records, ["f_value"])
+
 
 def upload_modules(request, plc_id, min=None, max=None, ajax=True):
 
@@ -451,6 +545,9 @@ def upload_modules(request, plc_id, min=None, max=None, ajax=True):
         min = request.GET.get("min")
         max = request.GET.get("max")
         # action = request.GET.get("action")
+    action = request.GET.get("action")
+    # if action == 'upload_save':
+    #     return JsonResponse({"return_block": ["Кнопка не работает!"]})
     module_index = cnfModule.objects.get(id=min).n_module_index
 
     clean_data = {
@@ -460,9 +557,9 @@ def upload_modules(request, plc_id, min=None, max=None, ajax=True):
             [3, module_index],
         ]
     }
-
+    
     return_block = send_data_to_plc(
-        plc_id, clean_data, GlobalObjectID.MODULE, None, False
+        plc_id, clean_data, GlobalObjectID.MODULE, None, False, action if action else None
     )  # DownloadToPLCInstance)
     data_mismatch = []
     if ajax:
@@ -473,6 +570,7 @@ def upload_modules(request, plc_id, min=None, max=None, ajax=True):
         elif not return_block:
             data_mismatch.append("Нет ответа от ПЛК!")
         else:
+            
             object_info = (
                 cnfModuleValue.objects.select_related("n_module", "n_attribute")
                 .exclude(n_attribute__n_parameter_id=0)
@@ -481,33 +579,39 @@ def upload_modules(request, plc_id, min=None, max=None, ajax=True):
                     n_module__n_controller_id=plc_id,
                 )
             )
-
-            for item in object_info:
-                if item.n_attribute.c_name_attribute == "CW":
-                    # В слове разбираем только нужные биты
-                    attr_CW_mask = []  # [0]*16
-                    for item_attr in cnfAttribute.objects.filter(
-                        n_global_object_type=1,
-                        n_attribute_type=AttributeFieldType.BOOLEAN_FIELD,
-                        c_name_attribute__contains="CW.",
-                    ).exclude(n_attr_display_order=0):
-                        attr_CW_mask.append((item_attr.n_parameter_bit, 1))
-                    attr_CW_mask_int = get_int_from_bits(attr_CW_mask)
-                    attr_CW_mask_int = attr_CW_mask_int & int(
-                        return_block[0].get(item.n_attribute.n_parameter_id)
-                    )
-                    if item.f_value != attr_CW_mask_int:
-                        data_mismatch.append(
-                            f"{item.n_attribute.c_display_attribute}: {int(item.f_value)} :  {attr_CW_mask_int}"
+            if action == "upload_save":
+                data_mismatch.append(upload_module_save(plc_id, module_index, object_info, return_block))
+                return JsonResponse({"return_block": data_mismatch})
+            if object_info:
+                for item in object_info:
+                    if item.n_attribute.c_name_attribute == "CW":
+                        # В слове разбираем только нужные биты
+                        attr_CW_mask = []  # [0]*16
+                        for item_attr in cnfAttribute.objects.filter(
+                            n_global_object_type=1,
+                            n_attribute_type=AttributeFieldType.BOOLEAN_FIELD,
+                            c_name_attribute__contains="CW.",
+                        ).exclude(n_attr_display_order=0):
+                            attr_CW_mask.append((item_attr.n_parameter_bit, 1))
+                        attr_CW_mask_int = get_int_from_bits(attr_CW_mask)
+                        attr_CW_mask_int = attr_CW_mask_int & int(
+                            return_block[0].get(item.n_attribute.n_parameter_id)
                         )
-                else:
-                    if item.f_value != return_block[0].get(
-                        item.n_attribute.n_parameter_id
-                    ):
-                        data_mismatch.append(
-                            f"{item.n_attribute.c_display_attribute}: БД[{item.f_value}], ПЛК[{return_block[0].get(item.n_attribute.n_parameter_id)}]"
-                        )
-                    # if item.n_attribute.n_parameter_id ==
+                        if item.f_value != attr_CW_mask_int:
+                            data_mismatch.append(
+                                f"{item.n_attribute.c_display_attribute}: {int(item.f_value)} :  {attr_CW_mask_int}"
+                            )
+                    else:
+                        if item.f_value != return_block[0].get(
+                            item.n_attribute.n_parameter_id
+                        ):
+                            data_mismatch.append(
+                                f"{item.n_attribute.c_display_attribute}: БД[{item.f_value}], ПЛК[{return_block[0].get(item.n_attribute.n_parameter_id)}]"
+                            )
+            else:
+                data_mismatch.append(
+                                " Все позиции БД и ПЛК"
+                            )
         return JsonResponse({"return_block": data_mismatch})
     return {"return_block": return_block}
 
