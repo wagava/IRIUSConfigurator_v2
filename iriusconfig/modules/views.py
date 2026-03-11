@@ -14,7 +14,7 @@ from django.views.generic import (CreateView, DeleteView, DetailView, ListView,
 from general.models import cnfAttribute, cnfController
 from general.utils import get_int_from_bits
 from services.mb_client import SelfModbusTcpClient
-from services.utils import send_data_to_plc
+from services.utils import send_data_to_plc, get_plc_data
 
 from iriusconfig.constants import (AttributeFieldType,
                                    CommandInterfaceConstants, GlobalObjectID,
@@ -395,6 +395,12 @@ class ModuleDeleteView(LoginRequiredMixin, ModuleAuthMixin, DeleteView):
         return reverse(
             "modules:module_home",
         )
+def module_rec_last(request, plc_id, module_id):
+    get_plc_data(plc_id)
+    return HttpResponseRedirect(reverse(
+            "modules:module_edit",
+            args=[plc_id, module_id],
+        ))
 
 def download_modules(request=None, plc_id=None, min=None, max=None, ajax=True):
 
@@ -440,6 +446,26 @@ def download_modules(request=None, plc_id=None, min=None, max=None, ajax=True):
     return {"error_back": return_block_errors}
     # return {"return_block": return_block_errors}
 
+def set_mask_to_config_words(config_word):
+    """Применение маски для полученного значения из ПЛК для конфигурационных слов."""
+
+        # В слове разбираем только нужные биты
+    attr_CW_mask = []  # [0]*16
+    attr_CW_bit_info = [] 
+    for item_attr in cnfAttribute.objects.filter(
+        n_global_object_type=1,
+        n_attribute_type=AttributeFieldType.BOOLEAN_FIELD,
+        c_name_attribute__contains="CW.",
+    ).exclude(n_attr_display_order=0):
+        attr_CW_mask.append((item_attr.n_parameter_bit, 1))
+        attr_CW_bit_info.append((item_attr, item_attr.n_parameter_bit))
+    attr_CW_mask_int = get_int_from_bits(attr_CW_mask)
+    attr_CW_mask_int = attr_CW_mask_int & int(
+        config_word
+    )
+    return attr_CW_mask_int, attr_CW_bit_info
+
+
 def upload_module_save(plc_id, module_index, object_info, data) -> str:
     """Обновление данных модуля из ПЛК в БД."""
     # pass
@@ -472,6 +498,33 @@ def upload_module_save(plc_id, module_index, object_info, data) -> str:
         for item_key, item_value in data[0].items():
             if item_key >= 5:  # До 5 индекса - это данные по телеграмме
                 attr = cnfAttribute.objects.get(n_parameter_id=item_key,n_global_object_type=GlobalObjectID.MODULE)
+                if attr.c_name_attribute == "CW":
+                    item_value, attr_par_to_set = set_mask_to_config_words(item_value)
+                    # Сохраняем отдельно биты
+                    for attr_info in attr_par_to_set:
+                        item_id = None
+                        for item_info in object_info:
+                            if item_info.n_attribute.n_parameter_id == attr_info[0].n_parameter_id:
+                                item_id = item_info[0].id
+                                break
+                        if item_id:
+                            records.append(
+                                    cnfModuleValue(
+                                        item_id,
+                                        n_module=module,
+                                        n_attribute=attr_info[0],
+                                        f_value= 1 if (1 & item_value >> attr_info[1]) == 1 else 0,
+                                        c_note="---",
+                                    ))
+                        else:
+                            records_to_create.append(cnfModuleValue(
+                                n_module=module,
+                                n_attribute=attr_info[0],
+                                f_value=1 if (1 & item_value >> attr_info[1]) == 1 else 0,
+                                c_note="---",
+                            ))
+
+
                 if not object_info:
                     records_to_create.append(cnfModuleValue(
                         n_module=module,

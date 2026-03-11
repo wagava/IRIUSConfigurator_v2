@@ -14,7 +14,7 @@ SECRET_KEY = os.getenv("SECRET_KEY", default="token")
 
 DEBUG = bool(int(os.getenv("DEBUG", default=True)))
 
-ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", default="127.0.0.1,localhost").split(",")
+ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", default="127.0.0.1,localhost,192.168.1.129").split(",")
 
 PROD_DB_HOST = os.getenv("PROD_DB_HOST", default="127.0.0.1")
 PROD_DB_PORT = os.getenv("PROD_DB_PORT", default="5435")

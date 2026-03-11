@@ -1,4 +1,5 @@
 # from typing import ClassVar
+from datetime import datetime
 from enum import Enum
 import struct
 import time
@@ -161,7 +162,7 @@ def get_return_rec_last_command(client: Snap7Client | SelfModbusTcpClient):
         else:
             return None, None, None
     elif client_type == ClientTypes.SIMATIC:
-        print("Читаем RecLast")
+        print(f'{datetime.now().strftime("%H:%M:%S.%f")[:-3]}: Читаем RecLast')
         cmd_rec_last = client.read_array_of_words(
             PlcAddressBlockConstants.RETURN_DATA_BLOCK,
             PlcAddressBlockConstants.RETURN_DATA_BLOCKS_REC_LAST_ADDRESS,
@@ -289,7 +290,9 @@ def send_wd_to_plc(client: Snap7Client | SelfModbusTcpClient):
         )
         # time.sleep(0.2)
     elif client_type == ClientTypes.SIMATIC:
-        print('Отправляется вотчдог')
+        print('Пауза 200 мсек...')
+        time.sleep(0.2)
+        print(f'{datetime.now().strftime("%H:%M:%S.%f")[:-3]}: Отправляется вотчдог')
         wd = client.read_by_type(
             PlcAddressBlockConstants.RETURN_DATA_BLOCK,
             PlcAddressBlockConstants.RETURN_DATA_BLOCKS_WD_ADDRESS,
@@ -301,17 +304,17 @@ def send_wd_to_plc(client: Snap7Client | SelfModbusTcpClient):
             wd, 
             DataTypes.DWORD
         )
-    print('Пауза 200 мсек...')
-    time.sleep(0.2)
+    # print('Пауза 200 мсек...')
+    # time.sleep(0.2)
 
 def read_buffer_last_changing(client: Snap7Client | SelfModbusTcpClient) -> bool:
     time_fix = time.time()
     response_ready = False
-    print('Начинаем читать buffer_last')
+    print(f'{datetime.now().strftime("%H:%M:%S.%f")[:-3]}: Начинаем читать buffer_last')
     while not response_ready:
         if time.time() - time_fix < CommandInterfaceConstants.RESPONSE_TIMEOUT:
             buffer_last = get_return_buffer_last_command(client)
-            print(f'buffer_last = {buffer_last}')
+            print(f'{datetime.now().strftime("%H:%M:%S.%f")[:-3]}: buffer_last = {buffer_last}')
             if buffer_last[2] != 0:
                 print('buffer_last > 0')
                 response_ready = True
@@ -324,7 +327,7 @@ def read_buffer_last_changing(client: Snap7Client | SelfModbusTcpClient) -> bool
 
 
 def read_response_from_plc(client: Snap7Client | SelfModbusTcpClient, response_bad_data, download, return_block, prev_return_rec_last):
-    time_fix = time.time()
+    # time_fix = time.time()
     response_ready = False
     tlm_data = {}
     rec_last = None
@@ -332,9 +335,13 @@ def read_response_from_plc(client: Snap7Client | SelfModbusTcpClient, response_b
     # send_wd_to_plc(client)
     
     return_timeout = False
+    buffer_last_read_once = False
     while not response_ready:
-        if client_type == ClientTypes.SIMATIC:
+        if client_type == ClientTypes.SIMATIC and not buffer_last_read_once:
             read_buffer_last_changing(client)
+            buffer_last_read_once = True  # BufferLast читаем в цикле однократно
+            time_fix = time.time()
+
         send_wd_to_plc(client)
         if time.time() - time_fix < CommandInterfaceConstants.RESPONSE_TIMEOUT:
             # print(f"Время ожидания: {(time.time()-time_fix):.2f}")
@@ -352,9 +359,9 @@ def read_response_from_plc(client: Snap7Client | SelfModbusTcpClient, response_b
                 rec_last = get_return_rec_last_command(client)
             # if rec_last != prev_return_rec_last and (rec_last and (rec_last[1] != 0 or rec_last[2] != 0)): # Это только для модбаса
             if rec_last != prev_return_rec_last and rec_last[2] != 0:
-                print("RecLast изменился...")
+                print(f'{datetime.now().strftime("%H:%M:%S.%f")[:-3]}: RecLast изменился...')
                 print(
-                    "RETURN_DATA_BLOCKS_REC_LAST = ",
+                    f'{datetime.now().strftime("%H:%M:%S.%f")[:-3]}: RETURN_DATA_BLOCKS_REC_LAST = ',
                     rec_last[0],
                     rec_last[1],
                     rec_last[2],
@@ -449,6 +456,22 @@ def read_response_from_plc(client: Snap7Client | SelfModbusTcpClient, response_b
     prev_return_rec_last = rec_last
     return return_block, response_bad_data, return_timeout
 
+def get_plc_data(plc_id):
+    """Тестовый метод для получения данных с ПЛК"""
+    client = get_active_client(CLIENTS[plc_id])
+
+    if not client or not client.is_connected:
+        print("Не удалось получить активного клиента подключения к ПЛК!")
+        return [{"error_num": "Не найден активный ПЛК!" if not client else "TIMEOUT", "index_num": None, "param_num": None}] 
+
+    # Получаем значения REC_LAST,чтобы понять с какого адреса писать
+    #print(client.client.connected)
+    tlm, nn, val = get_return_rec_last_command(client)
+
+    print(f'{datetime.now().strftime("%H:%M:%S.%f")[:-3]}: tlm, nn, val = {tlm},{nn},{val}')
+    client.disconnect()
+
+
 def send_data_to_plc(plc_id, data, object_type, handler_class=None, download=None, action: str | None = None):
     """
     Работа с ПЛК через командный интерфейс.
@@ -490,7 +513,7 @@ def send_data_to_plc(plc_id, data, object_type, handler_class=None, download=Non
 
     tlm_num = cmd_rec_last_tlm
     data_key_list = list(data.keys())
-    print("tlm_num = ", tlm_num)
+    print("tlm_num (было) = ", tlm_num)
     # Готовим данные пакетами, исходя из положения указателя в cmd_rec_last_val
     for index_key in range(len(data_key_list) + 1):
         if index_key < len(data_key_list):
@@ -513,6 +536,7 @@ def send_data_to_plc(plc_id, data, object_type, handler_class=None, download=Non
         tlm_num = tlm_num + 1 if tlm_num <= 255 and tlm_num >= 0 else 1
         tlm_send += 1
         telegram = []
+        print("tlm_num (стало) = ", tlm_num)
 
         temp_list.append(tlm_num)
 
@@ -541,7 +565,7 @@ def send_data_to_plc(plc_id, data, object_type, handler_class=None, download=Non
             #     (rec_last_value_for_writing // 255) * 255
             # )
             idle_data = []
-        print(f"Отправляется талеграмма: {current_item}")
+        
         telegram = add_telegram(current_item, tlm_num, telegram, client_type)
         
         response_bad_data[tlm_num] = {"data": current_item}
@@ -573,7 +597,7 @@ def send_data_to_plc(plc_id, data, object_type, handler_class=None, download=Non
             or data_key_list[index_key] == data_key_list[-1]
         ):
             # Сначала пишем sending_data, а потом sending_data_additional
-
+            print(f'{datetime.now().strftime("%H:%M:%S.%f")[:-3]}: Заполняются Rec-регистры: {current_item}')
             if not sending_data.get("start_address"):
                 # Вычисляем адрес с которого нужно писать в контроллер
                 # (Последний блок записи*длину блока(2 байта и один реал = 3 ворда)
@@ -646,6 +670,8 @@ def send_data_to_plc(plc_id, data, object_type, handler_class=None, download=Non
             )
             # temp_rec_last = [cmd_1, cmd_2, get_float_from_2_words(word2[0], word2[1])]
             # print('Rec_Last = ', temp_rec_last)
+            time.sleep(0.2)
+            print(f'{datetime.now().strftime("%H:%M:%S.%f")[:-3]}: Отправляется RecLast: {rec_last}')
             if client_type == ClientTypes.MODBUS:
                 client.write_holding_registers(
                     PlcAddressBlockConstants.CMD_DATA_BLOCKS_REC_LAST_ADDRESS, 
@@ -687,7 +713,7 @@ def send_data_to_plc(plc_id, data, object_type, handler_class=None, download=Non
         return_block = parse_error_data(
             return_block, response_bad_data, download=False, object_type=object_type
         )
-    print(f'Получена телеграмма: {return_block}')
+    print(f'{datetime.now().strftime("%H:%M:%S.%f")[:-3]}: Получена телеграмма: {return_block}')
     return return_block
 
 def parse_error_data(data, bad_data, download, object_type):
