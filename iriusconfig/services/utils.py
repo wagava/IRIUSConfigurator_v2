@@ -446,7 +446,13 @@ def read_response_from_plc(client: Snap7Client | SelfModbusTcpClient, response_b
                             return_block.append(
                                 item_val
                             )  # = item_val # tlm_data
-                response_ready = True
+                print(f'{datetime.now().strftime("%H:%M:%S.%f")[:-3]}: Получены данные: {return_block}')
+                for item_values in response_bad_data.values():
+                    for item_resp in return_block:
+                        if int(item_values['data'][2][1]) == int(item_resp[3]):  # Проверяем, что индекс совпадает с тем, что запрашивали
+                            return_block = [item_resp]
+                            response_ready = True
+                # response_ready = True
         else:
             print("timeout")
             if not tlm_data:
@@ -456,20 +462,20 @@ def read_response_from_plc(client: Snap7Client | SelfModbusTcpClient, response_b
     prev_return_rec_last = rec_last
     return return_block, response_bad_data, return_timeout
 
-def get_plc_data(plc_id):
-    """Тестовый метод для получения данных с ПЛК"""
-    client = get_active_client(CLIENTS[plc_id])
+# def get_plc_data(plc_id):
+#     """Тестовый метод для получения данных с ПЛК"""
+#     client = get_active_client(CLIENTS[plc_id])
 
-    if not client or not client.is_connected:
-        print("Не удалось получить активного клиента подключения к ПЛК!")
-        return [{"error_num": "Не найден активный ПЛК!" if not client else "TIMEOUT", "index_num": None, "param_num": None}] 
+#     if not client or not client.is_connected:
+#         print("Не удалось получить активного клиента подключения к ПЛК!")
+#         return [{"error_num": "Не найден активный ПЛК!" if not client else "TIMEOUT", "index_num": None, "param_num": None}] 
 
-    # Получаем значения REC_LAST,чтобы понять с какого адреса писать
-    #print(client.client.connected)
-    tlm, nn, val = get_return_rec_last_command(client)
+#     # Получаем значения REC_LAST,чтобы понять с какого адреса писать
+#     #print(client.client.connected)
+#     tlm, nn, val = get_return_rec_last_command(client)
 
-    print(f'{datetime.now().strftime("%H:%M:%S.%f")[:-3]}: tlm, nn, val = {tlm},{nn},{val}')
-    client.disconnect()
+#     print(f'{datetime.now().strftime("%H:%M:%S.%f")[:-3]}: tlm, nn, val = {tlm},{nn},{val}')
+#     client.disconnect()
 
 
 def send_data_to_plc(plc_id, data, object_type, handler_class=None, download=None, action: str | None = None):

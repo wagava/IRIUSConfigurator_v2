@@ -14,7 +14,7 @@ from django.views.generic import (CreateView, DeleteView, DetailView, ListView,
 from general.models import cnfAttribute, cnfController
 from general.utils import get_int_from_bits
 from services.mb_client import SelfModbusTcpClient
-from services.utils import send_data_to_plc, get_plc_data
+from services.utils import send_data_to_plc #, get_plc_data
 
 from iriusconfig.constants import (AttributeFieldType,
                                    CommandInterfaceConstants, GlobalObjectID,
@@ -395,12 +395,12 @@ class ModuleDeleteView(LoginRequiredMixin, ModuleAuthMixin, DeleteView):
         return reverse(
             "modules:module_home",
         )
-def module_rec_last(request, plc_id, module_id):
-    get_plc_data(plc_id)
-    return HttpResponseRedirect(reverse(
-            "modules:module_edit",
-            args=[plc_id, module_id],
-        ))
+# def module_rec_last(request, plc_id, module_id):
+#     get_plc_data(plc_id)
+#     return HttpResponseRedirect(reverse(
+#             "modules:module_edit",
+#             args=[plc_id, module_id],
+#         ))
 
 def download_modules(request=None, plc_id=None, min=None, max=None, ajax=True):
 
@@ -476,16 +476,27 @@ def upload_module_save(plc_id, module_index, object_info, data) -> str:
                             n_controller=plc_id
                         ).first()
     if not module:
+        # next_index = cnfModule.objects.order_by('-n_module_index').first().n_module_index + 1
+        user_editing = User.objects.first()
+        plc = cnfController.objects.get(id=plc_id)
+        module = cnfModule.objects.create(n_module_index=module_index,
+                                          c_name_module=f'Module {module_index}',
+                                          c_desc_module=f'Module {module_index} description',
+                                          n_controller=plc,
+                                          c_user_edit=user_editing)
+        # module.save
+    # Если модуль не существует в БД
         for item_key, item_value in data.items():
-            records_to_create.append(cnfModuleValue(
-                n_module=module,
-                n_attribute=cnfAttribute.objects.get(n_parameter_id=item_key,n_global_object_type=GlobalObjectID.MODULE),
-                f_value=item_value,
-                c_note="---",
-            ))
-        cnfModuleValue.objects.bulk_create(records_to_create)
+            if item_key >= 5:
+                records_to_create.append(cnfModuleValue(
+                    n_module=module,
+                    n_attribute=cnfAttribute.objects.get(n_parameter_id=item_key,n_global_object_type=GlobalObjectID.MODULE),
+                    f_value=item_value,
+                    c_note="---",
+                ))
+        # cnfModuleValue.objects.bulk_create(records_to_create)
     else:
-
+        # Если модуль существует обновляем или создаем параметры, полученные из ПЛК
         # object_info = (
         #             cnfModuleValue.objects.select_related("n_module", "n_attribute")
         #             .exclude(n_attribute__n_parameter_id=0)
@@ -595,79 +606,88 @@ def upload_modules(request, plc_id, min=None, max=None, ajax=True):
     # time_fix = timezone.now()
 
     if None in [min, max]:
-        min = request.GET.get("min")
-        max = request.GET.get("max")
+        min = int(request.GET.get("min"))
+        max = int(request.GET.get("max"))
         # action = request.GET.get("action")
     action = request.GET.get("action")
     # if action == 'upload_save':
     #     return JsonResponse({"return_block": ["Кнопка не работает!"]})
-    module_index = cnfModule.objects.get(id=min).n_module_index
+    if min == max:  # Отправлено из редактирования модуля
+        m_index = cnfModule.objects.get(id=min).n_module_index
+        max = m_index
+    else:
+        m_index = min  #начинается с 1-го индекса (не id)
 
-    clean_data = {
-        min: [
-            [1, 3],
-            [2, PlcCommandConstants.CMD_READ_MODULE_CONFIG],
-            [3, module_index],
-        ]
-    }
-    
-    return_block = send_data_to_plc(
-        plc_id, clean_data, GlobalObjectID.MODULE, None, False, action if action else None
-    )  # DownloadToPLCInstance)
-    data_mismatch = []
-    if ajax:
-        # response = {"return_block": return_block}
-        # if isinstance(return_block, dict) and return_block.get("error_num"):
-        if isinstance(return_block, list) and return_block[0].get("error_num"):
-            data_mismatch.append(return_block[0].get("error_num"))
-        elif not return_block:
-            data_mismatch.append("Нет ответа от ПЛК!")
-        else:
-            
-            object_info = (
-                cnfModuleValue.objects.select_related("n_module", "n_attribute")
-                .exclude(n_attribute__n_parameter_id=0)
-                .filter(
-                    n_module__n_module_index=return_block[0].get(3),
-                    n_module__n_controller_id=plc_id,
-                )
-            )
-            if action == "upload_save":
-                data_mismatch.append(upload_module_save(plc_id, module_index, object_info, return_block))
-                return JsonResponse({"return_block": data_mismatch})
-            if object_info:
-                for item in object_info:
-                    if item.n_attribute.c_name_attribute == "CW":
-                        # В слове разбираем только нужные биты
-                        attr_CW_mask = []  # [0]*16
-                        for item_attr in cnfAttribute.objects.filter(
-                            n_global_object_type=1,
-                            n_attribute_type=AttributeFieldType.BOOLEAN_FIELD,
-                            c_name_attribute__contains="CW.",
-                        ).exclude(n_attr_display_order=0):
-                            attr_CW_mask.append((item_attr.n_parameter_bit, 1))
-                        attr_CW_mask_int = get_int_from_bits(attr_CW_mask)
-                        attr_CW_mask_int = attr_CW_mask_int & int(
-                            return_block[0].get(item.n_attribute.n_parameter_id)
-                        )
-                        if item.f_value != attr_CW_mask_int:
-                            data_mismatch.append(
-                                f"{item.n_attribute.c_display_attribute}: {int(item.f_value)} :  {attr_CW_mask_int}"
-                            )
-                    else:
-                        if item.f_value != return_block[0].get(
-                            item.n_attribute.n_parameter_id
-                        ):
-                            data_mismatch.append(
-                                f"{item.n_attribute.c_display_attribute}: БД[{item.f_value}], ПЛК[{return_block[0].get(item.n_attribute.n_parameter_id)}]"
-                            )
+    for module_index in range(m_index, max+1):
+        clean_data = {
+            min: [
+                [1, 3],
+                [2, PlcCommandConstants.CMD_READ_MODULE_CONFIG],
+                [3, module_index],
+            ]
+        }
+        
+        return_block = send_data_to_plc(
+            plc_id, clean_data, GlobalObjectID.MODULE, None, False, action if action else None
+        )  # DownloadToPLCInstance)
+        data_mismatch = []
+        if ajax:
+            # response = {"return_block": return_block}
+            # if isinstance(return_block, dict) and return_block.get("error_num"):
+            if isinstance(return_block, list) and return_block[0].get("error_num"):
+                data_mismatch.append(return_block[0].get("error_num"))
+            elif not return_block:
+                data_mismatch.append("Нет ответа от ПЛК!")
             else:
-                data_mismatch.append(
-                                " Все позиции БД и ПЛК"
+                
+                object_info = (
+                    cnfModuleValue.objects.select_related("n_module", "n_attribute")
+                    .exclude(n_attribute__n_parameter_id=0)
+                    .filter(
+                        n_module__n_module_index=return_block[0].get(3),
+                        n_module__n_controller_id=plc_id,
+                    )
+                )
+                if action == "upload_save":
+                    data_mismatch.append(upload_module_save(plc_id, module_index, object_info, return_block))
+                    if min == max:
+                        return JsonResponse({"return_block": data_mismatch})
+                if object_info:
+                    for item in object_info:
+                        if item.n_attribute.c_name_attribute == "CW":
+                            # В слове разбираем только нужные биты
+                            attr_CW_mask = []  # [0]*16
+                            for item_attr in cnfAttribute.objects.filter(
+                                n_global_object_type=1,
+                                n_attribute_type=AttributeFieldType.BOOLEAN_FIELD,
+                                c_name_attribute__contains="CW.",
+                            ).exclude(n_attr_display_order=0):
+                                attr_CW_mask.append((item_attr.n_parameter_bit, 1))
+                            attr_CW_mask_int = get_int_from_bits(attr_CW_mask)
+                            attr_CW_mask_int = attr_CW_mask_int & int(
+                                return_block[0].get(item.n_attribute.n_parameter_id)
                             )
-        return JsonResponse({"return_block": data_mismatch})
-    return {"return_block": return_block}
-
+                            if item.f_value != attr_CW_mask_int:
+                                data_mismatch.append(
+                                    f"{item.n_attribute.c_display_attribute}: {int(item.f_value)} :  {attr_CW_mask_int}"
+                                )
+                        else:
+                            if item.f_value != return_block[0].get(
+                                item.n_attribute.n_parameter_id
+                            ):
+                                data_mismatch.append(
+                                    f"{item.n_attribute.c_display_attribute}: БД[{item.f_value}], ПЛК[{return_block[0].get(item.n_attribute.n_parameter_id)}]"
+                                )
+                else:
+                    data_mismatch.append(
+                                    " Все позиции БД и ПЛК"
+                                )
+            if min == max:
+                return JsonResponse({"return_block": data_mismatch})
+        if min == max:
+            return {"return_block": return_block}
+    # return JsonResponse({"return_block": data_mismatch})
+    return HttpResponseRedirect(reverse("modules:module_by_plc", kwargs={"plc_id": plc_id}))
 
 def check_state(request):
 

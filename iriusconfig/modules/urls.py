@@ -35,11 +35,15 @@ urlpatterns = [
         views.download_modules,
         name="download_modules",
     ),
+    # path(
+    #     "modules/upload/<int:plc_id>/",
+    #     views.upload_modules,
+    #     name="upload_modules",
+    # ),
     path("modules/upload/<int:plc_id>/", views.upload_modules, name="upload_modules"),
-    # path("module_rec_last/", views.module_rec_last, name="module_rec_last"),
-    path(
-        "plc/<int:plc_id>/module_rec_last/<int:module_id>/",
-        views.module_rec_last,
-        name="module_rec_last",
-    ),
+    # path(
+    #     "plc/<int:plc_id>/module_rec_last/<int:module_id>/",
+    #     views.module_rec_last,
+    #     name="module_rec_last",
+    # ),
 ]
