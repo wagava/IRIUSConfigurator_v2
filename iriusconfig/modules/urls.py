@@ -41,9 +41,9 @@ urlpatterns = [
     #     name="upload_modules",
     # ),
     path("modules/upload/<int:plc_id>/", views.upload_modules, name="upload_modules"),
-    # path(
-    #     "plc/<int:plc_id>/module_rec_last/<int:module_id>/",
-    #     views.module_rec_last,
-    #     name="module_rec_last",
-    # ),
+    path(
+        "plc/<int:plc_id>/module_rec_last/<int:module_id>/",
+        views.module_rec_last,
+        name="module_rec_last",
+    ),
 ]

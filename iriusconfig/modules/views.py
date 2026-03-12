@@ -14,7 +14,7 @@ from django.views.generic import (CreateView, DeleteView, DetailView, ListView,
 from general.models import cnfAttribute, cnfController
 from general.utils import get_int_from_bits
 from services.mb_client import SelfModbusTcpClient
-from services.utils import send_data_to_plc #, get_plc_data
+from services.utils import send_data_to_plc, get_plc_data
 
 from iriusconfig.constants import (AttributeFieldType,
                                    CommandInterfaceConstants, GlobalObjectID,
@@ -54,7 +54,7 @@ class ModuleListView(LoginRequiredMixin, ListView):
             "id", "c_desc_controller"
         )
         context["plc_id"] = int(self.kwargs["plc_id"])
-
+        context["all_count"] = self.kwargs.get("all_count")
         return context
 
     def get_queryset(self):
@@ -395,12 +395,12 @@ class ModuleDeleteView(LoginRequiredMixin, ModuleAuthMixin, DeleteView):
         return reverse(
             "modules:module_home",
         )
-# def module_rec_last(request, plc_id, module_id):
-#     get_plc_data(plc_id)
-#     return HttpResponseRedirect(reverse(
-#             "modules:module_edit",
-#             args=[plc_id, module_id],
-#         ))
+def module_rec_last(request, plc_id, module_id):
+    get_plc_data(plc_id)
+    return HttpResponseRedirect(reverse(
+            "modules:module_edit",
+            args=[plc_id, module_id],
+        ))
 
 def download_modules(request=None, plc_id=None, min=None, max=None, ajax=True):
 
@@ -486,8 +486,20 @@ def upload_module_save(plc_id, module_index, object_info, data) -> str:
                                           c_user_edit=user_editing)
         # module.save
     # Если модуль не существует в БД
-        for item_key, item_value in data.items():
+        for item_key, item_value in data[0].items():
             if item_key >= 5:
+                attr = cnfAttribute.objects.get(n_parameter_id=item_key,n_global_object_type=GlobalObjectID.MODULE)
+                if attr.c_name_attribute == "CW":
+                    item_value, attr_par_to_set = set_mask_to_config_words(item_value)
+                    # Сохраняем отдельно биты
+                    for attr_info in attr_par_to_set:
+                        records_to_create.append(cnfModuleValue(
+                            n_module=module,
+                            n_attribute=attr_info[0],
+                            f_value=1 if (1 & item_value >> attr_info[1]) == 1 else 0,
+                            c_note="---",
+                        ))
+
                 records_to_create.append(cnfModuleValue(
                     n_module=module,
                     n_attribute=cnfAttribute.objects.get(n_parameter_id=item_key,n_global_object_type=GlobalObjectID.MODULE),
@@ -615,6 +627,7 @@ def upload_modules(request, plc_id, min=None, max=None, ajax=True):
     if min == max:  # Отправлено из редактирования модуля
         m_index = cnfModule.objects.get(id=min).n_module_index
         max = m_index
+        min = m_index
     else:
         m_index = min  #начинается с 1-го индекса (не id)
 

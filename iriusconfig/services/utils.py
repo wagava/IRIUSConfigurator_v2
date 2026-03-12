@@ -12,6 +12,7 @@ from services.simatic_client import DataTypes, Snap7Client
 from variables.models import cnfVariable
 
 from iriusconfig.constants import (AttributeFieldType, GlobalObjectID,
+                                   CmdError,
                                    PlcAddressBlockConstants,
                                    PlcCommandConstants,
                                    CommandInterfaceConstants)
@@ -359,7 +360,7 @@ def read_response_from_plc(client: Snap7Client | SelfModbusTcpClient, response_b
                 rec_last = get_return_rec_last_command(client)
             # if rec_last != prev_return_rec_last and (rec_last and (rec_last[1] != 0 or rec_last[2] != 0)): # Это только для модбаса
             if rec_last != prev_return_rec_last and rec_last[2] != 0:
-                print(f'{datetime.now().strftime("%H:%M:%S.%f")[:-3]}: RecLast изменился...')
+                print(f'{datetime.now().strftime("%H:%M:%S.%f")[:-3]}: RecLast изменился... ({prev_return_rec_last} <> {rec_last})')
                 print(
                     f'{datetime.now().strftime("%H:%M:%S.%f")[:-3]}: RETURN_DATA_BLOCKS_REC_LAST = ',
                     rec_last[0],
@@ -447,11 +448,20 @@ def read_response_from_plc(client: Snap7Client | SelfModbusTcpClient, response_b
                                 item_val
                             )  # = item_val # tlm_data
                 print(f'{datetime.now().strftime("%H:%M:%S.%f")[:-3]}: Получены данные: {return_block}')
-                for item_values in response_bad_data.values():
-                    for item_resp in return_block:
-                        if int(item_values['data'][2][1]) == int(item_resp[3]):  # Проверяем, что индекс совпадает с тем, что запрашивали
-                            return_block = [item_resp]
-                            response_ready = True
+                try:
+                    for item_values in response_bad_data.values():
+                        for item_resp in return_block:
+                            if item_resp[1] >= 3 or (item_resp[1] == len(item_resp)): # только корректная телеграмма
+                                if int(item_values['data'][2][1]) == int(item_resp[3]):  # Проверяем, что индекс совпадает с тем, что запрашивали
+                                    return_block = [item_resp]
+                                    response_ready = True
+                                else: # ошибка
+                                    if item_resp[2] in CmdError.MESSAGE.keys():
+                                        # return_block = [item_resp]
+                                        print(f'Ошибка с контроллера: {item_resp} - {CmdError.MESSAGE[item_resp[2]]}')
+                                        response_ready = True
+                except Exception as er:
+                    print(f'Ошибка при разборе телеграммы (формат): {er}')
                 # response_ready = True
         else:
             print("timeout")
@@ -462,20 +472,20 @@ def read_response_from_plc(client: Snap7Client | SelfModbusTcpClient, response_b
     prev_return_rec_last = rec_last
     return return_block, response_bad_data, return_timeout
 
-# def get_plc_data(plc_id):
-#     """Тестовый метод для получения данных с ПЛК"""
-#     client = get_active_client(CLIENTS[plc_id])
+def get_plc_data(plc_id):
+    """Тестовый метод для получения данных с ПЛК"""
+    client = get_active_client(CLIENTS[plc_id])
 
-#     if not client or not client.is_connected:
-#         print("Не удалось получить активного клиента подключения к ПЛК!")
-#         return [{"error_num": "Не найден активный ПЛК!" if not client else "TIMEOUT", "index_num": None, "param_num": None}] 
+    if not client or not client.is_connected:
+        print("Не удалось получить активного клиента подключения к ПЛК!")
+        return [{"error_num": "Не найден активный ПЛК!" if not client else "TIMEOUT", "index_num": None, "param_num": None}] 
 
-#     # Получаем значения REC_LAST,чтобы понять с какого адреса писать
-#     #print(client.client.connected)
-#     tlm, nn, val = get_return_rec_last_command(client)
+    # Получаем значения REC_LAST,чтобы понять с какого адреса писать
+    #print(client.client.connected)
+    tlm, nn, val = get_return_rec_last_command(client)
 
-#     print(f'{datetime.now().strftime("%H:%M:%S.%f")[:-3]}: tlm, nn, val = {tlm},{nn},{val}')
-#     client.disconnect()
+    print(f'{datetime.now().strftime("%H:%M:%S.%f")[:-3]}: tlm, nn, val = {tlm},{nn},{val}')
+    client.disconnect()
 
 
 def send_data_to_plc(plc_id, data, object_type, handler_class=None, download=None, action: str | None = None):
@@ -753,15 +763,8 @@ def parse_error_data(data, bad_data, download, object_type):
                     PlcCommandConstants.RETURN_CMD_READ_EQUIPMENT_SEQ3_CONFIG,
                     PlcCommandConstants.RETURN_CMD_READ_EQUIPMENT_SEQ4_CONFIG,
                 ):
-                    if upload_data:
-                        upload_data.append(
-                            {
-                                "error_num": cmd_data.get(item[2]),
-                                "index_num": f"телеграмма {item[3]}",
-                                "param_num": "None",
-                            }
-                        )
-                    else:
+
+                    if item[2] in CmdError.MESSAGE.keys():
                         upload_data = [
                             {
                                 "error_num": cmd_data.get(item[2]),
@@ -769,17 +772,20 @@ def parse_error_data(data, bad_data, download, object_type):
                                 "param_num": "None",
                             }
                         ]
+                    else:
+                        upload_data = data
+
             except Exception:
                 print('Некорректрный формат обратной связи!')
                 upload_data = [
                             {
-                                "error_num": 'Некорректрный формат обратной связи!',
-                                "index_num": 'Некорректрный формат обратной связи!',
+                                "error_num": 'Некорректный формат обратной связи!',
+                                "index_num": 'Некорректный формат обратной связи!',
                                 "param_num": "None",
                             }
                         ]
     if not download:
-        return data  # upload_data if upload_data else data
+        return upload_data # data  # upload_data if upload_data else data
     return data
 
 
