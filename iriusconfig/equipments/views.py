@@ -1240,8 +1240,12 @@ class EquipmentDeleteView(LoginRequiredMixin, EquipmentAuthMixin, DeleteView):
 
     def get_success_url(self):
         return reverse(
-            "equipments:equipment_home",
+            "equipments:equipment_by_plc_filter",
+            args=[self.kwargs["plc_id"]],
         )
+        # return reverse(
+        #     "equipments:equipment_home",
+        # )
 
 
 def download_equipments(request=False, plc_id=False, min=None, max=None, ajax=True):

@@ -63,12 +63,11 @@ class ModuleListView(LoginRequiredMixin, ListView):
                 self.kwargs["plc_id"] = self.request.GET["plc_selector"]
                 return get_modules_data_custom(
                     n_controller=self.request.GET["plc_selector"],
-                ).order_by("n_module_index")
+                )[0]
 
-        return get_modules_data_custom(n_controller=self.kwargs["plc_id"]).order_by(
-            "n_module_index"
-        )
-
+        queryset = get_modules_data_custom(n_controller=self.kwargs["plc_id"])
+        self.kwargs["all_count"] = queryset[1]
+        return queryset[0]
 
 class ModuleCreateView(LoginRequiredMixin, ModuleMixin, ModuleAuthMixin, CreateView):
     """Создание модуля."""
@@ -649,6 +648,7 @@ def upload_modules(request, plc_id, min=None, max=None, ajax=True):
             # if isinstance(return_block, dict) and return_block.get("error_num"):
             if isinstance(return_block, list) and return_block[0].get("error_num"):
                 data_mismatch.append(return_block[0].get("error_num"))
+                break
             elif not return_block:
                 data_mismatch.append("Нет ответа от ПЛК!")
             else:

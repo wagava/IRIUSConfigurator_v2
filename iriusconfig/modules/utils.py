@@ -27,11 +27,13 @@ def get_module_types() -> dict:
 
 def get_modules_data_custom(**kwargs):
     """Выборка данных из таблицы модулей с дополнительным фильтром."""
-    return cnfModule.objects.select_related(
+    queryset = cnfModule.objects.select_related(
         "c_user_edit",
         "n_controller",
-    ).filter(**kwargs)
-
+    ).filter(**kwargs).order_by(
+            "n_module_index"
+        )
+    return (queryset, len(list(queryset)))
 
 def get_module_extra_data(**kwargs):
     """Выборка всех данных по определенному модулю."""

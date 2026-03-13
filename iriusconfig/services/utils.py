@@ -469,7 +469,8 @@ def read_response_from_plc(client: Snap7Client | SelfModbusTcpClient, response_b
                 return_timeout = True
                 # print("timeout")
             response_ready = True
-    prev_return_rec_last = rec_last
+        prev_return_rec_last = rec_last
+    # prev_return_rec_last = rec_last
     return return_block, response_bad_data, return_timeout
 
 def get_plc_data(plc_id):
@@ -600,11 +601,12 @@ def send_data_to_plc(plc_id, data, object_type, handler_class=None, download=Non
                 PlcAddressBlockConstants.RETURN_DATA_BLOCKS_REC_LAST_ADDRESS, 3
             )
         elif client_type == ClientTypes.SIMATIC:
-            prev_return_rec_last = client.read_array_of_words(
-                PlcAddressBlockConstants.RETURN_DATA_BLOCK,
-                PlcAddressBlockConstants.RETURN_DATA_BLOCKS_REC_LAST_ADDRESS,
-                3
-            )
+            prev_return_rec_last = get_return_rec_last_command(client)
+            # client.read_array_of_words(
+            #     PlcAddressBlockConstants.RETURN_DATA_BLOCK,
+            #     PlcAddressBlockConstants.RETURN_DATA_BLOCKS_REC_LAST_ADDRESS,
+            #     3
+            # )
         print('Sending new array of data...')
         # Если последний ключ обраотан, либо список ожидания заполнен (значит весь буфер забит уже), пишем в ПЛК
         if (
