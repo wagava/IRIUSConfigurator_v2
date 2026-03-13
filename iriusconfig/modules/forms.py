@@ -87,7 +87,7 @@ class ModuleForm(forms.ModelForm):
                 get_modules_data_custom(
                     n_module_index__lt=module.n_module_index,
                     n_controller=module.n_controller_id,
-                )
+                )[0]
                 .exclude(n_module_index=module.n_module_index)
                 .order_by("-n_module_index")
                 .first()
@@ -98,7 +98,7 @@ class ModuleForm(forms.ModelForm):
                 get_modules_data_custom(
                     n_module_index__gt=module.n_module_index,
                     n_controller=module.n_controller_id,
-                )
+                )[0]
                 .exclude(n_module_index=module.n_module_index)
                 .order_by("n_module_index")
                 .first()
