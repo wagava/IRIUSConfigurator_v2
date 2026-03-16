@@ -17,7 +17,11 @@ from iriusconfig.constants import (AttributeFieldType, GlobalObjectID,
                                    PlcCommandConstants,
                                    CommandInterfaceConstants)
 from iriusconfig.settings import PLC_CLIENT_TYPE # PLC_IP
+import logging
 
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 class ClientTypes(Enum):
     """Типы клиента для работы с PLC."""
@@ -35,6 +39,7 @@ def get_plc_clients():
     for plc_item in cnfController.objects.all():
 
         plc_list = plc_item.c_ip_controller.strip().split(',')
+        
         if len(plc_list) == 2:
             if client_type == ClientTypes.MODBUS:
                 CLIENTS[plc_item.id] = [SelfModbusTcpClient(plc_list[0], 502),
@@ -42,11 +47,13 @@ def get_plc_clients():
             elif client_type == ClientTypes.SIMATIC:
                 CLIENTS[plc_item.id] = [Snap7Client(plc_list[0]),
                                         Snap7Client(plc_list[1])]
+            logger.info(f'Найдены резервируемые контроллеры: {plc_list}')
         else:
             if client_type == ClientTypes.MODBUS:
                 CLIENTS[plc_item.id] = [SelfModbusTcpClient(plc_list[0], 502)]
             elif client_type == ClientTypes.SIMATIC:
                 CLIENTS[plc_item.id] = [Snap7Client(plc_list[0])]
+            logger.info(f'Найден контроллер: {plc_list}')
     return CLIENTS
     # CLIENTS = {plc_item.id:SelfModbusTcpClient(plc_item.c_ip_controller,502) for plc_item in cnfController.object.all()}
 
@@ -291,8 +298,8 @@ def send_wd_to_plc(client: Snap7Client | SelfModbusTcpClient):
         )
         # time.sleep(0.2)
     elif client_type == ClientTypes.SIMATIC:
-        print('Пауза 200 мсек...')
-        time.sleep(0.2)
+        print('Пауза 500 мсек...')
+        time.sleep(0.5)
         print(f'{datetime.now().strftime("%H:%M:%S.%f")[:-3]}: Отправляется вотчдог')
         wd = client.read_by_type(
             PlcAddressBlockConstants.RETURN_DATA_BLOCK,
@@ -337,16 +344,21 @@ def read_response_from_plc(client: Snap7Client | SelfModbusTcpClient, response_b
     
     return_timeout = False
     buffer_last_read_once = False
+    rec_last_changed = False
     while not response_ready:
         if client_type == ClientTypes.SIMATIC and not buffer_last_read_once:
             read_buffer_last_changing(client)
             buffer_last_read_once = True  # BufferLast читаем в цикле однократно
             time_fix = time.time()
 
-        send_wd_to_plc(client)
+        if not rec_last_changed:
+            send_wd_to_plc(client)
+            rec_last_changed = True
+            # wd_tst = True
         if time.time() - time_fix < CommandInterfaceConstants.RESPONSE_TIMEOUT:
             # print(f"Время ожидания: {(time.time()-time_fix):.2f}")
-            time.sleep(0.1)
+            # time.sleep(0.1)
+            time.sleep(0.2)
             if client_type == ClientTypes.MODBUS: 
                 rec_last = client.read_holding_registers(
                     PlcAddressBlockConstants.RETURN_DATA_BLOCKS_REC_LAST_ADDRESS, 3
@@ -360,6 +372,7 @@ def read_response_from_plc(client: Snap7Client | SelfModbusTcpClient, response_b
                 rec_last = get_return_rec_last_command(client)
             # if rec_last != prev_return_rec_last and (rec_last and (rec_last[1] != 0 or rec_last[2] != 0)): # Это только для модбаса
             if rec_last != prev_return_rec_last and rec_last[2] != 0:
+                
                 print(f'{datetime.now().strftime("%H:%M:%S.%f")[:-3]}: RecLast изменился... ({prev_return_rec_last} <> {rec_last})')
                 print(
                     f'{datetime.now().strftime("%H:%M:%S.%f")[:-3]}: RETURN_DATA_BLOCKS_REC_LAST = ',
@@ -383,6 +396,7 @@ def read_response_from_plc(client: Snap7Client | SelfModbusTcpClient, response_b
                         cmd_rec_last_val * PlcAddressBlockConstants.REC_LENGTH_IN_BYTE,
                     )
                 elif client_type == ClientTypes.SIMATIC:
+                    print(f'{datetime.now().strftime("%H:%M:%S.%f")[:-3]}: Читаем Return, длину {cmd_rec_ln} регистров')
                     return_records = client.read_array_of_words(
                         PlcAddressBlockConstants.RETURN_DATA_BLOCK,
                         PlcAddressBlockConstants.RETURN_DATA_BLOCKS_REC_ADDRESS,
@@ -418,6 +432,7 @@ def read_response_from_plc(client: Snap7Client | SelfModbusTcpClient, response_b
                 # Находим успешные и удаляем из словаря
                 resp_keys = response_bad_data.keys()
                 # temp_list.extend(tlm_data)
+                print(f'{datetime.now().strftime("%H:%M:%S.%f")[:-3]}: Данные из Rec {tlm_data}')
                 for item_key, item_val in tlm_data.items():
                     if download:
                         if (
@@ -470,6 +485,7 @@ def read_response_from_plc(client: Snap7Client | SelfModbusTcpClient, response_b
                 # print("timeout")
             response_ready = True
         prev_return_rec_last = rec_last
+    # send_wd_to_plc(client)
     # prev_return_rec_last = rec_last
     return return_block, response_bad_data, return_timeout
 
@@ -701,7 +717,7 @@ def send_data_to_plc(plc_id, data, object_type, handler_class=None, download=Non
                     PlcAddressBlockConstants.CMD_DATA_BLOCKS_REC_LAST_ADDRESS, 
                     rec_last
                 )
-
+            send_wd_to_plc(client)
             sending_data["data"] = []
             sending_data_additional = None
             # print('Rec all: ',response_bad_data)
