@@ -23,6 +23,7 @@ class CmdError:
     # C_ENOTACTIVE = 9  # Конфигурационная запись объекта. Код ошибки - объект с таким индексом не актив
     # C_EPRMNOTFOUND = 10  # Конфигурационная запись объекта. Параметр с указанным идентификатором не найде    
 
+
 @dataclass(frozen=True)
 class ViewConstants:
     MAX_ITEMS_ON_PAGE = 25

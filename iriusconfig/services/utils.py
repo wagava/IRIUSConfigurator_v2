@@ -23,6 +23,19 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+
+@dataclass(frozen=True)
+class CmdDataConstants:
+    DATA_DESC = {item.n_command_index: item.c_desc for item in cnfCommands.objects.all()}
+    
+@dataclass(frozen=True)
+class AttrConstants:
+    DATA_DESC = {
+        item.n_parameter_id: item.c_display_attribute
+        for item in cnfAttribute.objects.all()
+    }
+
+
 class ClientTypes(Enum):
     """Типы клиента для работы с PLC."""
     SIMATIC = 'SIMATIC'
@@ -442,7 +455,10 @@ def read_response_from_plc(client: Snap7Client | SelfModbusTcpClient, response_b
                                 item_val.get(3) in resp_keys
                             ):  # При хорошем ответе в третьем параметре пишется номер телеграммы
                                 # if item_val[1] == 1: # Если порядковый номер параметра = 1, и там результат "успешно" - выбрасываем
-                                response_bad_data.pop(item_val[3])
+                                if response_bad_data.get(item_val[3]):
+                                    response_bad_data.pop(item_val[3])
+                                if not response_bad_data:
+                                    response_ready = True
                         else:
                             # смотрим ошибку
                             # разбираем ошибку по справочнику и указываем для каого элементы
@@ -750,23 +766,27 @@ def send_data_to_plc(plc_id, data, object_type, handler_class=None, download=Non
     print(f'{datetime.now().strftime("%H:%M:%S.%f")[:-3]}: Получена телеграмма: {return_block}')
     return return_block
 
+# старый алгоритм
 def parse_error_data(data, bad_data, download, object_type):
 
-    cmd_data = {item.n_command_index: item.c_desc for item in cnfCommands.objects.all()}
-    attributes = {
-        item.n_parameter_id: item.c_display_attribute
-        for item in cnfAttribute.objects.all()
-    }
+    # cmd_data = {item.n_command_index: item.c_desc for item in cnfCommands.objects.all()}
+    # attributes = {
+    #     item.n_parameter_id: item.c_display_attribute
+    #     for item in cnfAttribute.objects.all()
+    # }
     upload_data = None
 
     for item in data:
         if download:
-            item["error_num"] = cmd_data.get(item["error_num"])
+            # item["error_num"] = cmd_data.get(item["error_num"])
+            item["error_num"] = CmdDataConstants.DATA_DESC.get(item["error_num"])
             item["index_num"] = (
                 f'индекс {item["index_num"]}'  # f'телеграмма {item["index_num"]}'
             )
-            if attributes.get(item["param_num"]):
-                item["param_num"] = f'Параметр {attributes.get(item["param_num"])}'
+            # if attributes.get(item["param_num"]):
+            if AttrConstants.DATA_DESC.get(item["param_num"]):                
+                # item["param_num"] = f'Параметр {attributes.get(item["param_num"])}'
+                item["param_num"] = f'Параметр {AttrConstants.DATA_DESC.get(item["param_num"])}'
             # if object_type == GlobalObjectID.VARIABLE:
             #     cnfVariable.objects.filter()
         else:
@@ -785,7 +805,8 @@ def parse_error_data(data, bad_data, download, object_type):
                     if item[2] in CmdError.MESSAGE.keys():
                         upload_data = [
                             {
-                                "error_num": cmd_data.get(item[2]),
+                                # "error_num": cmd_data.get(item[2]),
+                                "error_num": CmdDataConstants.DATA_DESC.get(item[2]),
                                 "index_num": f"телеграмма {item[3]}",
                                 "param_num": "None",
                             }
@@ -805,6 +826,64 @@ def parse_error_data(data, bad_data, download, object_type):
     if not download:
         return upload_data # data  # upload_data if upload_data else data
     return data
+
+
+# новый алгоритм
+def parse_response_data(data, bad_data, download, object_type):
+
+    upload_data = None
+
+    for item in data:
+        if download:
+            # item["error_num"] = cmd_data.get(item["error_num"])
+            item["error_num"] = CmdDataConstants.DATA_DESC.get(item["error_num"])
+            item["index_num"] = (
+                f'индекс {item["index_num"]}'  # f'телеграмма {item["index_num"]}'
+            )
+            # if attributes.get(item["param_num"]):
+            if AttrConstants.DATA_DESC.get(item["param_num"]):                
+                # item["param_num"] = f'Параметр {attributes.get(item["param_num"])}'
+                item["param_num"] = f'Параметр {AttrConstants.DATA_DESC.get(item["param_num"])}'
+            # if object_type == GlobalObjectID.VARIABLE:
+            #     cnfVariable.objects.filter()
+        else:
+            try:
+                if item[2] not in (
+                    PlcCommandConstants.RETURN_CMD_READ_EQUIPMENT_CONFIG,
+                    PlcCommandConstants.RETURN_CMD_READ_EQUIPMENT_LINK_EQ_CONFIG,
+                    PlcCommandConstants.RETURN_CMD_READ_EQUIPMENT_LINK_PID_CONFIG,
+                    PlcCommandConstants.RETURN_CMD_READ_EQUIPMENT_LINK_VDB_CONFIG,
+                    PlcCommandConstants.RETURN_CMD_READ_EQUIPMENT_SEQ1_CONFIG,
+                    PlcCommandConstants.RETURN_CMD_READ_EQUIPMENT_SEQ2_CONFIG,
+                    PlcCommandConstants.RETURN_CMD_READ_EQUIPMENT_SEQ3_CONFIG,
+                    PlcCommandConstants.RETURN_CMD_READ_EQUIPMENT_SEQ4_CONFIG,
+                ):
+
+                    if item[2] in CmdError.MESSAGE.keys():
+                        upload_data = [
+                            {
+                                # "error_num": cmd_data.get(item[2]),
+                                "error_num": CmdDataConstants.DATA_DESC.get(item[2]),
+                                "index_num": f"телеграмма {item[3]}",
+                                "param_num": "None",
+                            }
+                        ]
+                    else:
+                        upload_data = data
+
+            except Exception:
+                print('Некорректрный формат обратной связи!')
+                upload_data = [
+                            {
+                                "error_num": 'Некорректный формат обратной связи!',
+                                "index_num": 'Некорректный формат обратной связи!',
+                                "param_num": "None",
+                            }
+                        ]
+    if not download:
+        return upload_data # data  # upload_data if upload_data else data
+    return data
+
 
 
 def get_count_precision(number):

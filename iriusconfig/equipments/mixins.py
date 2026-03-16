@@ -75,7 +75,7 @@ class EquipmentViewMixin:
                             break
                     else:
                         break
-            if item_role_value is None or item_role_value == "select_item":
+            if (item_role_value is None or item_role_value == "select_item") or (item_par_value is None or item_par_value == "select_item"):
                 pass
             else:
                 if self.ITEM_NAMES[table_name][4] == "pid":
