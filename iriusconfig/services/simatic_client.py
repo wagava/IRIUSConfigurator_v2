@@ -104,6 +104,7 @@ class Snap7Client:
 
     def _swap_words(self, data: bytearray):
         if len(data) < 4:
+            # return bytearray([data[0],data[1]])
             return data
         #
         # return bytearray([data[2],data[3], data[0], data[1]])
@@ -163,8 +164,12 @@ class Snap7Client:
         elif data_type == DataTypes.BYTE:
             return data[0]
         elif data_type == DataTypes.INT:
+            # data_swapped = self._swap_words(data[:2])
+            # return struct.unpack('>h', data_swapped)[0] 
             return struct.unpack('>h', data[:2])[0]
         elif data_type == DataTypes.WORD:
+            # data_swapped = self._swap_words(data[:2])
+            # return struct.unpack('>H', data_swapped)[0]        
             return struct.unpack('>H', data[:2])[0]        
         elif data_type == DataTypes.DINT:
             return struct.unpack('>h', data[:4])[0]

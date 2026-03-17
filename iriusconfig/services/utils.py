@@ -448,6 +448,14 @@ def read_response_from_plc(client: Snap7Client | SelfModbusTcpClient, response_b
                 print(f'{datetime.now().strftime("%H:%M:%S.%f")[:-3]}: Данные из Rec {tlm_data}')
                 for item_key, item_val in tlm_data.items():
                     if download:
+                        # При записи в контроллер может быть получена телеграмма длиной 3,5
+                        # Телеграмма длиной в 3 содержит:
+                        # 1: Длина, 2: id сообщения 3: индекс оборудования | номер телеграммы
+                        #
+                        # Телеграмма длиной в 5 содержит:
+                        # 1: Длина, 2: id сообщения 3: индекс оборудования 4: Номер параметра 5: значение параметры
+                        #
+
                         if (
                             item_val.get(2) == 1
                         ):  # Если порядковый номер параметра = 2, и там результат "успешно" - выбрасываем
@@ -463,17 +471,18 @@ def read_response_from_plc(client: Snap7Client | SelfModbusTcpClient, response_b
                             # смотрим ошибку
                             # разбираем ошибку по справочнику и указываем для каого элементы
                             # т.е. формируем понятный ответ для пользователя
-                            item_dict = {
-                                "error_num": item_val.get(2),
-                                "index_num": item_val.get(3),
-                                "param_num": item_val.get(4),
-                            }
-                            # if item_val.get(2) is None and item_val.get(4) is None:
-                            print("=============", item_val)
-                            # temp_list.append(item_val)
-                            if item_dict not in return_block:
-                                return_block.append(item_dict)
-                    else:
+                            if len(item_val) <= 5: # Под команды записи в контроллер не должна быть телеграмма больше 5 элементов
+                                item_dict = {
+                                    "error_num": item_val.get(2),
+                                    "index_num": item_val.get(3),
+                                    "param_num": item_val.get(4),
+                                }
+                                # if item_val.get(2) is None and item_val.get(4) is None:
+                                print("=============", item_val)
+                                # temp_list.append(item_val)
+                                if item_dict not in return_block:
+                                    return_block.append(item_dict)
+                    else:  # upload
                         if item_val not in return_block:
                             return_block.append(
                                 item_val
@@ -733,7 +742,8 @@ def send_data_to_plc(plc_id, data, object_type, handler_class=None, download=Non
                     PlcAddressBlockConstants.CMD_DATA_BLOCKS_REC_LAST_ADDRESS, 
                     rec_last
                 )
-            send_wd_to_plc(client)
+            if client_type == ClientTypes.SIMATIC:
+                send_wd_to_plc(client)  # После отпавки RecLast в CMD-блоке необходимо записать WatchDog, чтобы ПЛК принял команду
             sending_data["data"] = []
             sending_data_additional = None
             # print('Rec all: ',response_bad_data)

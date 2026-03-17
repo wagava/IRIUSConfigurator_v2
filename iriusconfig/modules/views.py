@@ -24,7 +24,9 @@ from .mixins import ModuleMixin, ModuleAuthMixin
 from .models import cnfModule, cnfModuleValue  # , cnfModuleAttribute
 from .utils import (DW_CNT, DownloadToPLC,  # , send_data_to_plc
                     download_modules_to_plc, get_module_data_to_plc,
-                    get_module_extra_data, get_modules_data_custom)
+                    get_module_extra_data, get_modules_data_custom,
+                    get_bytes_from_int, get_2_words_from_float,
+                    get_float_from_2_words)
 
 User = get_user_model()
 
@@ -467,13 +469,109 @@ def set_mask_to_config_words(config_word):
 
 def upload_module_save(plc_id, module_index, object_info, data) -> str:
     """Обновление данных модуля из ПЛК в БД."""
-    # pass
+    # def get_or_create_module():
+    #     """Получение или создание модуля."""
+    #     module = cnfModule.objects.filter(
+    #         n_module_index=module_index,
+    #         n_controller=plc_id
+    #     ).first()
+        
+    #     if not module:
+    #         plc = cnfController.objects.get(id=plc_id)
+    #         module = cnfModule.objects.create(
+    #             n_module_index=module_index,
+    #             c_name_module=f'Module {module_index}',
+    #             c_desc_module=f'Module {module_index} description',
+    #             n_controller=plc,
+    #             c_user_edit=User.objects.first()
+    #         )
+    #     return module
+    
+    # def process_cw_attribute(attr, item_value, module, object_info_map, records, records_to_create):
+    #     """Обработка атрибута CW (Config Word) с битовыми значениями."""
+    #     item_value, attr_par_to_set = set_mask_to_config_words(item_value)
+        
+    #     for attr_info in attr_par_to_set:
+    #         bit_value = 1 if (item_value >> attr_info[1]) & 1 else 0
+    #         existing_id = object_info_map.get(attr_info[0].n_parameter_id)
+            
+    #         record_data = {
+    #             'n_module': module,
+    #             'n_attribute': attr_info[0],
+    #             'f_value': bit_value,
+    #             'c_note': "---"
+    #         }
+            
+    #         if existing_id:
+    #             records.append(cnfModuleValue(id=existing_id, **record_data))
+    #         else:
+    #             records_to_create.append(cnfModuleValue(**record_data))
+    
+    # def process_regular_attribute(item_key, item_value, attr, module, object_info_map, records, records_to_create):
+    #     """Обработка обычного атрибута."""
+    #     existing_id = object_info_map.get(item_key)
+    #     record_data = {
+    #         'n_module': module,
+    #         'n_attribute': attr,
+    #         'f_value': item_value,
+    #         'c_note': "---"
+    #     }
+        
+    #     if existing_id:
+    #         records.append(cnfModuleValue(id=existing_id, **record_data))
+    #     else:
+    #         records_to_create.append(cnfModuleValue(**record_data))
+    
+    # # Получаем или создаем модуль
+    # module = get_or_create_module()
+    
+    # # Создаем словарь существующих записей для быстрого поиска
+    # object_info_map = {
+    #     item.n_attribute.n_parameter_id: item.id 
+    #     for item in object_info
+    # } if object_info else {}
+    
+    # # Кэш для атрибутов, чтобы избежать повторных запросов к БД
+    # attr_cache = {}
+    
+    # records = []
+    # records_to_create = []
+    
+    # # Обрабатываем только ключи >= 5 (данные телеграммы)
+    # for item_key, item_value in data[0].items():
+    #     if item_key < 5:
+    #         continue
+            
+    #     # Получаем атрибут из кэша или БД
+    #     cache_key = (item_key, GlobalObjectID.MODULE)
+    #     if cache_key not in attr_cache:
+    #         attr_cache[cache_key] = cnfAttribute.objects.get(
+    #             n_parameter_id=item_key,
+    #             n_global_object_type=GlobalObjectID.MODULE
+    #         )
+    #     attr = attr_cache[cache_key]
+        
+    #     # Специальная обработка для CW атрибута
+    #     if attr.c_name_attribute == "CW":
+    #         process_cw_attribute(attr, item_value, module, object_info_map, records, records_to_create)
+        
+    #     # Обработка обычного атрибута
+    #     process_regular_attribute(item_key, item_value, attr, module, object_info_map, records, records_to_create)
+    
+    # # Выполняем bulk операции
+    # if records:
+    #     cnfModuleValue.objects.bulk_update(records, ["f_value"])
+    # if records_to_create:
+    #     cnfModuleValue.objects.bulk_create(records_to_create)
+    
+    # return "Данные модуля обновлены."
     records = []
     records_to_create = []
     module = cnfModule.objects.filter(
                             n_module_index=module_index,
                             n_controller=plc_id
                         ).first()
+
     if not module:
         # next_index = cnfModule.objects.order_by('-n_module_index').first().n_module_index + 1
         user_editing = User.objects.first()
@@ -507,16 +605,15 @@ def upload_module_save(plc_id, module_index, object_info, data) -> str:
                 ))
         # cnfModuleValue.objects.bulk_create(records_to_create)
     else:
-        # Если модуль существует обновляем или создаем параметры, полученные из ПЛК
-        # object_info = (
-        #             cnfModuleValue.objects.select_related("n_module", "n_attribute")
-        #             .exclude(n_attribute__n_parameter_id=0)
-        #             .filter(
-        #                 n_module__n_module_index=module_index,
-        #                 n_module__n_controller_id=plc_id,
-        #             )
-        #         )
-
+        
+        module_info_bits = (
+                    cnfModuleValue.objects.select_related("n_module", "n_attribute")
+                    .filter(
+                        n_attribute__n_parameter_id=0,
+                        n_module__n_module_index=module_index,
+                        n_module__n_controller_id=plc_id,
+                    )
+                )
         for item_key, item_value in data[0].items():
             if item_key >= 5:  # До 5 индекса - это данные по телеграмме
                 attr = cnfAttribute.objects.get(n_parameter_id=item_key,n_global_object_type=GlobalObjectID.MODULE)
@@ -525,9 +622,9 @@ def upload_module_save(plc_id, module_index, object_info, data) -> str:
                     # Сохраняем отдельно биты
                     for attr_info in attr_par_to_set:
                         item_id = None
-                        for item_info in object_info:
-                            if item_info.n_attribute.n_parameter_id == attr_info[0].n_parameter_id:
-                                item_id = item_info[0].id
+                        for item_info in module_info_bits:
+                            if item_info.n_attribute_id == attr_info[0].id:
+                                item_id = item_info.id
                                 break
                         if item_id:
                             records.append(
@@ -580,34 +677,13 @@ def upload_module_save(plc_id, module_index, object_info, data) -> str:
             else:
                 pass
      
-    if records:
-        cnfModuleValue.objects.bulk_update(records, ["f_value"])
-    if records_to_create:
-        cnfModuleValue.objects.bulk_create(records_to_create)
+    # if records:
+    #     cnfModuleValue.objects.bulk_update(records, ["f_value"])
+    # if records_to_create:
+    #     cnfModuleValue.objects.bulk_create(records_to_create)
     
     return "Данные модуля обновлены."
-    # records = [
-    #         cnfModuleValue(
-    #             idx,
-    #             n_module=form.instance,
-    #             n_attribute=n_attribute,
-    #             f_value=f_value,
-    #             c_note="---",
-    #         )
-    #         for idx, f_value, n_attribute in prep_data
-    #     ]
-
-    # records_to_create = [
-    #         cnfModuleValue(
-    #             n_module=form.instance,
-    #             n_attribute=n_attribute,
-    #             f_value=f_value,
-    #             c_note="---",
-    #         )
-    #         for f_value, n_attribute in prep_data_create
-    #     ]
-
-    # cnfModuleValue.objects.bulk_update(records, ["f_value"])
+    
 
 
 def upload_modules(request, plc_id, min=None, max=None, ajax=True):
@@ -669,6 +745,15 @@ def upload_modules(request, plc_id, min=None, max=None, ajax=True):
                     for item in object_info:
                         if item.n_attribute.c_name_attribute == "CW":
                             # В слове разбираем только нужные биты
+
+
+                            # temp_words = get_2_words_from_float(return_block[0].get(item.n_attribute.n_parameter_id))
+                            # temp_bytes1 = get_bytes_from_int(int(temp_words[0]))
+                            # temp_bytes2 = get_bytes_from_int(int(temp_words[0]))
+                            # temb_bytearray = bytearray([temp_bytes2[0],temp_bytes2[1], temp_bytes1[0], temp_bytes1[1]])
+                            # get_float_from_2_words
+
+
                             attr_CW_mask = []  # [0]*16
                             for item_attr in cnfAttribute.objects.filter(
                                 n_global_object_type=1,
