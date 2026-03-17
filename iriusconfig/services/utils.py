@@ -325,8 +325,8 @@ def send_wd_to_plc(client: Snap7Client | SelfModbusTcpClient):
             wd, 
             DataTypes.DWORD
         )
-    # print('Пауза 200 мсек...')
-    # time.sleep(0.2)
+    # print('Пауза 500 мсек...')
+    # time.sleep(0.5)
 
 def read_buffer_last_changing(client: Snap7Client | SelfModbusTcpClient) -> bool:
     time_fix = time.time()
@@ -363,10 +363,10 @@ def read_response_from_plc(client: Snap7Client | SelfModbusTcpClient, response_b
             read_buffer_last_changing(client)
             buffer_last_read_once = True  # BufferLast читаем в цикле однократно
             time_fix = time.time()
-
-        if not rec_last_changed:
-            send_wd_to_plc(client)
-            rec_last_changed = True
+        send_wd_to_plc(client)
+        # if not rec_last_changed:
+        #     send_wd_to_plc(client)
+        #     rec_last_changed = True
             # wd_tst = True
         if time.time() - time_fix < CommandInterfaceConstants.RESPONSE_TIMEOUT:
             # print(f"Время ожидания: {(time.time()-time_fix):.2f}")

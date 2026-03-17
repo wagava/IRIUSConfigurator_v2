@@ -12,7 +12,7 @@ from django.utils import timezone
 from django.views.generic import (CreateView, DeleteView, DetailView, ListView,
                                   TemplateView, UpdateView)
 from general.models import cnfAttribute, cnfController
-from general.utils import get_int_from_bits
+from general.utils import get_int_from_bits, set_mask_to_config_words
 from services.mb_client import SelfModbusTcpClient
 from services.utils import send_data_to_plc, get_plc_data
 
@@ -447,24 +447,30 @@ def download_modules(request=None, plc_id=None, min=None, max=None, ajax=True):
     return {"error_back": return_block_errors}
     # return {"return_block": return_block_errors}
 
-def set_mask_to_config_words(config_word):
-    """Применение маски для полученного значения из ПЛК для конфигурационных слов."""
+# def set_mask_to_config_words(cfg_word):
+#     """Применение маски для полученного значения из ПЛК для конфигурационных слов."""
 
-        # В слове разбираем только нужные биты
-    attr_CW_mask = []  # [0]*16
-    attr_CW_bit_info = [] 
-    for item_attr in cnfAttribute.objects.filter(
-        n_global_object_type=1,
-        n_attribute_type=AttributeFieldType.BOOLEAN_FIELD,
-        c_name_attribute__contains="CW.",
-    ).exclude(n_attr_display_order=0):
-        attr_CW_mask.append((item_attr.n_parameter_bit, 1))
-        attr_CW_bit_info.append((item_attr, item_attr.n_parameter_bit))
-    attr_CW_mask_int = get_int_from_bits(attr_CW_mask)
-    attr_CW_mask_int = attr_CW_mask_int & int(
-        config_word
-    )
-    return attr_CW_mask_int, attr_CW_bit_info
+#     config_word = int(cfg_word)
+#     # Сохраняем знак, но для битовых операций используем абсолютное значение
+#     is_negative = config_word < 0
+#     abs_value = abs(config_word)
+    
+#     # Для битовой маски используем абсолютное значение
+#     config_word = abs_value & 0xFFFF if is_negative else config_word & 0xFFFF
+#         # В слове разбираем только нужные биты
+#     attr_CW_mask = []  # [0]*16
+#     attr_CW_bit_info = [] 
+#     for item_attr in cnfAttribute.objects.filter(
+#         n_global_object_type=1,
+#         n_attribute_type=AttributeFieldType.BOOLEAN_FIELD,
+#         c_name_attribute__contains="CW.",
+#     ).exclude(n_attr_display_order=0):
+#         attr_CW_mask.append((item_attr.n_parameter_bit, 1))
+#         attr_CW_bit_info.append((item_attr, item_attr.n_parameter_bit))
+#     attr_CW_mask_int = get_int_from_bits(attr_CW_mask)
+#     attr_CW_mask_int = attr_CW_mask_int & config_word
+
+#     return attr_CW_mask_int, attr_CW_bit_info
 
 
 def upload_module_save(plc_id, module_index, object_info, data) -> str:
@@ -677,10 +683,10 @@ def upload_module_save(plc_id, module_index, object_info, data) -> str:
             else:
                 pass
      
-    # if records:
-    #     cnfModuleValue.objects.bulk_update(records, ["f_value"])
-    # if records_to_create:
-    #     cnfModuleValue.objects.bulk_create(records_to_create)
+    if records:
+        cnfModuleValue.objects.bulk_update(records, ["f_value"])
+    if records_to_create:
+        cnfModuleValue.objects.bulk_create(records_to_create)
     
     return "Данные модуля обновлены."
     
@@ -745,15 +751,6 @@ def upload_modules(request, plc_id, min=None, max=None, ajax=True):
                     for item in object_info:
                         if item.n_attribute.c_name_attribute == "CW":
                             # В слове разбираем только нужные биты
-
-
-                            # temp_words = get_2_words_from_float(return_block[0].get(item.n_attribute.n_parameter_id))
-                            # temp_bytes1 = get_bytes_from_int(int(temp_words[0]))
-                            # temp_bytes2 = get_bytes_from_int(int(temp_words[0]))
-                            # temb_bytearray = bytearray([temp_bytes2[0],temp_bytes2[1], temp_bytes1[0], temp_bytes1[1]])
-                            # get_float_from_2_words
-
-
                             attr_CW_mask = []  # [0]*16
                             for item_attr in cnfAttribute.objects.filter(
                                 n_global_object_type=1,
@@ -762,9 +759,16 @@ def upload_modules(request, plc_id, min=None, max=None, ajax=True):
                             ).exclude(n_attr_display_order=0):
                                 attr_CW_mask.append((item_attr.n_parameter_bit, 1))
                             attr_CW_mask_int = get_int_from_bits(attr_CW_mask)
-                            attr_CW_mask_int = attr_CW_mask_int & int(
-                                return_block[0].get(item.n_attribute.n_parameter_id)
-                            )
+
+                            config_word = int(return_block[0].get(item.n_attribute.n_parameter_id))
+                            # Для битовой маски используем абсолютное значение
+                            config_word = abs(config_word) & 0xFFFF if config_word < 0 else config_word & 0xFFFF
+                            attr_CW_mask_int = attr_CW_mask_int & config_word
+
+
+                            # attr_CW_mask_int = attr_CW_mask_int & int(
+                            #     return_block[0].get(item.n_attribute.n_parameter_id)
+                            # )
                             if item.f_value != attr_CW_mask_int:
                                 data_mismatch.append(
                                     f"{item.n_attribute.c_display_attribute}: {int(item.f_value)} :  {attr_CW_mask_int}"
