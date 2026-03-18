@@ -17,7 +17,7 @@ def get_bits_from_int(word2: int) -> dict:
     return bits
 
 
-def set_mask_to_config_words(cfg_word,global_object_type):
+def set_mask_to_config_words(cfg_word,global_object_type, cw_type):
     """Применение маски для полученного значения из ПЛК для конфигурационных слов."""
 
     config_word = int(cfg_word)
@@ -33,7 +33,7 @@ def set_mask_to_config_words(cfg_word,global_object_type):
     for item_attr in cnfAttribute.objects.filter(
         n_global_object_type=global_object_type,
         n_attribute_type=AttributeFieldType.BOOLEAN_FIELD,
-        c_name_attribute__contains="CW.",
+        c_name_attribute__startswith=f'{cw_type}.',
     ).exclude(n_attr_display_order=0):
         attr_CW_mask.append((item_attr.n_parameter_bit, 1))
         attr_CW_bit_info.append((item_attr, item_attr.n_parameter_bit))

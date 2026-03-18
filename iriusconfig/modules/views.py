@@ -593,7 +593,7 @@ def upload_module_save(plc_id, module_index, object_info, data) -> str:
             if item_key >= 5:
                 attr = cnfAttribute.objects.get(n_parameter_id=item_key,n_global_object_type=GlobalObjectID.MODULE)
                 if attr.c_name_attribute == "CW":
-                    item_value, attr_par_to_set = set_mask_to_config_words(item_value,GlobalObjectID.MODULE)
+                    item_value, attr_par_to_set = set_mask_to_config_words(item_value,GlobalObjectID.MODULE, 'CW')
                     # Сохраняем отдельно биты
                     for attr_info in attr_par_to_set:
                         records_to_create.append(cnfModuleValue(
@@ -624,7 +624,7 @@ def upload_module_save(plc_id, module_index, object_info, data) -> str:
             if item_key >= 5:  # До 5 индекса - это данные по телеграмме
                 attr = cnfAttribute.objects.get(n_parameter_id=item_key,n_global_object_type=GlobalObjectID.MODULE)
                 if attr.c_name_attribute == "CW":
-                    item_value, attr_par_to_set = set_mask_to_config_words(item_value,GlobalObjectID.MODULE)
+                    item_value, attr_par_to_set = set_mask_to_config_words(item_value,GlobalObjectID.MODULE, 'CW')
                     # Сохраняем отдельно биты
                     for attr_info in attr_par_to_set:
                         item_id = None
