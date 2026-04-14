@@ -1129,8 +1129,16 @@ def upload_module_save(plc_id, variable_index, object_info, data) -> str:
                             c_note="---",
                         ))
             elif return_tlm_data_item.get(2) and return_tlm_data_item.get(2) == PlcCommandConstants.RETURN_CMD_READ_VARIABLE_FORMULA_CONFIG:
-                pass            
-        # cnfModuleValue.objects.bulk_create(records_to_create)
+                formula_str_parsed = get_formula_data(return_tlm_data_item)
+                attr = cnfAttribute.objects.filter(c_name_attribute='Formula',n_global_object_type=GlobalObjectID.VARIABLE).first()
+                records_to_create.append(cnfVariableValue(
+                                        n_variable=variable,
+                                        n_attribute=attr,
+                                        f_value=0,
+                                        c_formula=formula_str_parsed,
+                                        c_note="---",
+                                    ))            
+    # cnfModuleValue.objects.bulk_create(records_to_create)
     else:
         
         module_info_bits = (
@@ -1236,9 +1244,34 @@ def upload_module_save(plc_id, variable_index, object_info, data) -> str:
                         pass
                 variable.save()
             elif return_tlm_data_item.get(2) and return_tlm_data_item.get(2) == PlcCommandConstants.RETURN_CMD_READ_VARIABLE_FORMULA_CONFIG:
-                pass
+                formula_str_parsed = get_formula_data(return_tlm_data_item)
+                attr = cnfAttribute.objects.filter(c_name_attribute='Formula',n_global_object_type=GlobalObjectID.VARIABLE).first()
+                item_found = False
+                for item in object_info:
+                    if item.n_attribute.c_name_attribute == 'Formula':
+                        records.append(
+                                    cnfVariableValue(
+                                        item.id,
+                                        n_variable=variable,
+                                        n_attribute=attr,
+                                        f_value=0,
+                                        c_formula=formula_str_parsed,
+                                        c_note="---",
+                                    ))
+                        item_found = True
+                if not item_found:
+                    records_to_create.append(cnfVariableValue(
+                                            n_variable=variable,
+                                            n_attribute=attr,
+                                            f_value=0,
+                                            c_formula=formula_str_parsed,
+                                            c_note="---",
+                                        ))
+                # else:                        
+                # if item.c_formula != formula_str_parsed:
+                #     pass
     if records:
-        cnfVariableValue.objects.bulk_update(records, ["f_value"])
+        cnfVariableValue.objects.bulk_update(records, ["f_value","c_formula"])
     if records_to_create:
         cnfVariableValue.objects.bulk_create(records_to_create)
     
@@ -1314,33 +1347,39 @@ def upload_variables(request, plc_id, min=None, max=None, ajax=True):
                                 #     .exclude(n_attr_display_order=0)
                                 #     .values()
                                 # ]
-                                attr_CW_mask_int, attr_par_to_set = set_mask_to_config_words(return_tlm_data_item.get(item.n_attribute.n_parameter_id),
-                                                                                            GlobalObjectID.VARIABLE,
-                                                                                            'CW' if item.n_attribute.c_name_attribute == "CW" else 'HILO_CW')
+                                if return_tlm_data_item.get(item.n_attribute.n_parameter_id):
+                                    attr_CW_mask_int, attr_par_to_set = set_mask_to_config_words(return_tlm_data_item.get(item.n_attribute.n_parameter_id),
+                                                                                                GlobalObjectID.VARIABLE,
+                                                                                                'CW' if item.n_attribute.c_name_attribute == "CW" else 'HILO_CW')
 
-                                # for item_attr in cnfAttribute.objects.filter(
-                                #     n_global_object_type=2,
-                                #     n_attribute_type=AttributeFieldType.BOOLEAN_FIELD,
-                                #     c_name_attribute__startswith="CW.",
-                                # ).exclude(n_attr_display_order=0):
-                                #     attr_CW_mask.append((item_attr.n_parameter_bit, 1))
-                                # attr_CW_mask_int = get_int_from_bits(attr_CW_mask)
+                                    # for item_attr in cnfAttribute.objects.filter(
+                                    #     n_global_object_type=2,
+                                    #     n_attribute_type=AttributeFieldType.BOOLEAN_FIELD,
+                                    #     c_name_attribute__startswith="CW.",
+                                    # ).exclude(n_attr_display_order=0):
+                                    #     attr_CW_mask.append((item_attr.n_parameter_bit, 1))
+                                    # attr_CW_mask_int = get_int_from_bits(attr_CW_mask)
 
-                                # config_word = int(return_block[0].get(item.n_attribute.n_parameter_id))
-                                # # Для битовой маски используем абсолютное значение
-                                # config_word = abs(config_word) & 0xFFFF if config_word < 0 else config_word & 0xFFFF
-                                # attr_CW_mask_int = attr_CW_mask_int & config_word
+                                    # config_word = int(return_block[0].get(item.n_attribute.n_parameter_id))
+                                    # # Для битовой маски используем абсолютное значение
+                                    # config_word = abs(config_word) & 0xFFFF if config_word < 0 else config_word & 0xFFFF
+                                    # attr_CW_mask_int = attr_CW_mask_int & config_word
 
-                                # attr_CW_mask_int = attr_CW_mask_int & int(
-                                #     return_block[0].get(item.n_attribute.n_parameter_id)
-                                # )
-                                if item.f_value != attr_CW_mask_int:
-                                    data_mismatch.append(
-                                        f"{item.n_attribute.c_display_attribute}: БД[{int(item.f_value)}], ПЛК[{attr_CW_mask_int}]"
-                                    )
+                                    # attr_CW_mask_int = attr_CW_mask_int & int(
+                                    #     return_block[0].get(item.n_attribute.n_parameter_id)
+                                    # )
+                                    if item.f_value != attr_CW_mask_int:
+                                        data_mismatch.append(
+                                            f"{item.n_attribute.c_display_attribute}: БД[{int(item.f_value)}], ПЛК[{attr_CW_mask_int}]"
+                                        )
                             elif return_tlm_data_item.get(2) == PlcCommandConstants.RETURN_CMD_READ_VARIABLE_FORMULA_CONFIG and item.n_attribute.c_name_attribute == "Formula":
                                 # Разбор данных формулы из БД
-                                formula_parsed = get_formula_data(item.c_formula)
+                                # formula_codes_parsed = get_formula_data(item.c_formula)
+                                formula_str_parsed = get_formula_data(return_tlm_data_item)
+                                if item.c_formula != formula_str_parsed:
+                                    data_mismatch.append(
+                                        f"Формула: БД[{item.c_formula}], ПЛК[{formula_str_parsed}]"
+                                    )
                             elif return_tlm_data_item.get(2) == PlcCommandConstants.RETURN_CMD_READ_VARIABLE_CONFIG:
                                 precision = get_count_precision(item.f_value)
                                 if return_tlm_data_item.get(

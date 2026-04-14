@@ -119,18 +119,31 @@ def download_variables_to_plc():
     pass
 
 
-def get_formula_data(data):  # , symbols):
+def get_formula_data(data: str | dict):  # , symbols):
     """
-    Формирование посылки для формулы
+    str: Формирование посылки для формулы
+    dict: сборка формулы из посылки
     """
-    formulas_symbol_type_values = {
+
+    if isinstance(data, str):
+        parameter_parsed = []
+        formulas_symbol_type_values = {
         items["c_symbol"]: items["n_chr"]
         for items in cnfFormulaSymbol.objects.all().values("n_chr", "c_symbol")
-    }
-    parameter_parsed = []
-    for raw_symbol in data:
-        parameter_parsed.append(formulas_symbol_type_values.get(raw_symbol))
-        # parameter_parsed.append(symbols.get(raw_symbol))
+        }
+        for raw_symbol in data:
+            parameter_parsed.append(formulas_symbol_type_values.get(raw_symbol))
+            # parameter_parsed.append(symbols.get(raw_symbol))
+    else:  # dict
+        parameter_parsed = ''
+        formulas_symbol_type_values = {
+        items["n_chr"]: items["c_symbol"]
+        for items in cnfFormulaSymbol.objects.all().values("n_chr", "c_symbol")
+        }
+        for key, value in data.items():
+            if key > 3:  # Пропускаем номер телеграммы, ответную команду и индекс переменной
+                parameter_parsed = parameter_parsed + formulas_symbol_type_values.get(value)
+
     return parameter_parsed
 
 

@@ -482,13 +482,22 @@ def read_response_from_plc(client: Snap7Client | SelfModbusTcpClient, response_b
                                 print("=============", item_val)
                                 # temp_list.append(item_val)
                                 if item_dict not in return_block:
-                                    return_block.append(item_dict)
+                                    # return_block.append(item_dict)
+                                    if return_block_filtered:
+                                        return_block_filtered.append(item_dict)
+                                    else:
+                                        return_block_filtered = [item_dict]
                     else:  # upload
                         if item_val not in return_block:
-                            return_block.append(
-                                item_val
-                            )  # = item_val # tlm_data
-                print(f'{datetime.now().strftime("%H:%M:%S.%f")[:-3]}: Получены данные: {return_block}')
+                            # return_block.append(
+                            #     item_val
+                            # )  # = item_val # tlm_data
+                            if return_block_filtered:
+                                return_block_filtered.append(item_val)              
+                            else:
+                                return_block_filtered = [item_val]  
+                # print(f'{datetime.now().strftime("%H:%M:%S.%f")[:-3]}: Получены данные: {return_block}')
+                print(f'{datetime.now().strftime("%H:%M:%S.%f")[:-3]}: Получены данные: {return_block_filtered}')
                 try:
 
                     for item_values in response_bad_data.values():
