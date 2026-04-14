@@ -1103,26 +1103,33 @@ def upload_module_save(plc_id, variable_index, object_info, data) -> str:
                                           c_user_edit=user_editing)
         # module.save
     # Если модуль не существует в БД
-        for item_key, item_value in data[0].items():
-            if item_key >= 5:
-                attr = cnfAttribute.objects.get(n_parameter_id=item_key,n_global_object_type=GlobalObjectID.VARIABLE)
-                if attr.c_name_attribute == "CW":
-                    item_value, attr_par_to_set = set_mask_to_config_words(item_value,GlobalObjectID.VARIABLE,'CW')
-                    # Сохраняем отдельно биты
-                    for attr_info in attr_par_to_set:
+        # for item_key, item_value in data[0].items():
+        for return_tlm_data_item in data:
+            if return_tlm_data_item.get(2) and return_tlm_data_item.get(2) == PlcCommandConstants.RETURN_CMD_READ_VARIABLE_CONFIG:
+                for item_key, item_value in return_tlm_data_item.items():
+                    if item_key >= 5:
+                        attr = cnfAttribute.objects.get(n_parameter_id=item_key,n_global_object_type=GlobalObjectID.VARIABLE)
+                        if attr.c_name_attribute == "CW" or attr.c_name_attribute == "HILO_CW":
+                            item_value, attr_par_to_set = set_mask_to_config_words(item_value,
+                                                                                   GlobalObjectID.VARIABLE,
+                                                                                   'CW' if attr.c_name_attribute == "CW" else "HILO_CW")
+                            # Сохраняем отдельно биты
+                            for attr_info in attr_par_to_set:
+                                records_to_create.append(cnfVariableValue(
+                                    n_variable=variable,
+                                    n_attribute=attr_info[0],
+                                    f_value=1 if (1 & item_value >> attr_info[1]) == 1 else 0,
+                                    c_note="---",
+                                ))
+
                         records_to_create.append(cnfVariableValue(
                             n_variable=variable,
-                            n_attribute=attr_info[0],
-                            f_value=1 if (1 & item_value >> attr_info[1]) == 1 else 0,
+                            n_attribute=cnfAttribute.objects.get(n_parameter_id=item_key,n_global_object_type=GlobalObjectID.VARIABLE),
+                            f_value=item_value,
                             c_note="---",
                         ))
-
-                records_to_create.append(cnfVariableValue(
-                    n_variable=variable,
-                    n_attribute=cnfAttribute.objects.get(n_parameter_id=item_key,n_global_object_type=GlobalObjectID.VARIABLE),
-                    f_value=item_value,
-                    c_note="---",
-                ))
+            elif return_tlm_data_item.get(2) and return_tlm_data_item.get(2) == PlcCommandConstants.RETURN_CMD_READ_VARIABLE_FORMULA_CONFIG:
+                pass            
         # cnfModuleValue.objects.bulk_create(records_to_create)
     else:
         
@@ -1132,93 +1139,104 @@ def upload_module_save(plc_id, variable_index, object_info, data) -> str:
                         n_attribute__n_parameter_id=0,
                         n_variable__n_variable_index=variable_index,
                         n_variable__n_controller_id=plc_id,
-                    )
-                )
-        for item_key, item_value in data[0].items():
-            if item_key >= 5:  # До 5 индекса - это данные по телеграмме
-                print(f'item_key = {item_key}')
-                # Проверяем вхождение параметров в основную таблицу cnfVariable для обычных полей
-                if item_key in cnfVariable_field_to_save.keys():
-                    setattr(variable, cnfVariable_field_to_save[item_key], item_value)
-                    # variable.save()
-                # Проверяем вхождение параметров в основную таблицу cnfVariable для fk полей
-                elif item_key in cnfVariable_field_fk_to_save:
-                    field_info = cnfVariable_field_fk_to_save[item_key]
-                    # Создаем словарь с условием фильтрации
-                    filter_kwargs = {field_info['fk_field']: item_value}
-                    if field_info.get('add_fk_field'):
-                        filter_kwargs[field_info['add_fk_field'][0]] = field_info['add_fk_field'][1]
-                    # Получаем связанный объект
-                    related_object = field_info['table'].objects.get(**filter_kwargs)
-                    # Присваиваем значение полю
-                    setattr(variable, field_info['field'], related_object)
-                    # variable.save()
-                    # setattr(variable, cnfVariable_field_fk_to_save(item_key)('field'),
-                    #         cnfVariable_field_fk_to_save(item_key)('table').objects.get(cnfVariable_field_fk_to_save(item_key)('fk_field')=item_value))
-                else:
-                    attr = cnfAttribute.objects.filter(n_parameter_id=item_key,n_global_object_type=GlobalObjectID.VARIABLE).first()
-                    if attr:
-                        # if attr.c_name_attribute
-                        if attr.c_name_attribute == "CW":
-                            item_value, attr_par_to_set = set_mask_to_config_words(item_value,GlobalObjectID.VARIABLE,'CW')
-                            # Сохраняем отдельно биты
-                            for attr_info in attr_par_to_set:
-                                item_id = None
-                                for item_info in module_info_bits:
-                                    if item_info.n_attribute_id == attr_info[0].id:
-                                        item_id = item_info.id
-                                        break
-                                if item_id:
-                                    records.append(
-                                            cnfVariableValue(
-                                                item_id,
+                    ))
+        for return_tlm_data_item in data:
+            if return_tlm_data_item.get(2) and return_tlm_data_item.get(2) == PlcCommandConstants.RETURN_CMD_READ_VARIABLE_CONFIG:
+            # for item_key, item_value in data[0].items():
+                for item_key, item_value in return_tlm_data_item.items():
+                    
+                    if item_key >= 5:  # До 5 индекса - это данные по телеграмме
+                        print(f'item_key = {item_key}')
+                        # Проверяем вхождение параметров в основную таблицу cnfVariable для обычных полей
+                        if item_key in cnfVariable_field_to_save.keys():
+                            setattr(variable, cnfVariable_field_to_save[item_key], item_value)
+                            # variable.save()
+                        # Проверяем вхождение параметров в основную таблицу cnfVariable для fk полей
+                        elif item_key in cnfVariable_field_fk_to_save:
+                            field_info = cnfVariable_field_fk_to_save[item_key]
+                            # Создаем словарь с условием фильтрации
+                            filter_kwargs = {field_info['fk_field']: item_value}
+                            if field_info.get('add_fk_field'):
+                                filter_kwargs[field_info['add_fk_field'][0]] = field_info['add_fk_field'][1]
+                            # Получаем связанный объект
+                            related_object = field_info['table'].objects.get(**filter_kwargs)
+                            # Присваиваем значение полю
+                            setattr(variable, field_info['field'], related_object)
+                            # variable.save()
+                            # setattr(variable, cnfVariable_field_fk_to_save(item_key)('field'),
+                            #         cnfVariable_field_fk_to_save(item_key)('table').objects.get(cnfVariable_field_fk_to_save(item_key)('fk_field')=item_value))
+                        else:
+                            attr = cnfAttribute.objects.filter(n_parameter_id=item_key,n_global_object_type=GlobalObjectID.VARIABLE).first()
+                            if attr:
+                                # if attr.c_name_attribute
+                                if attr.c_name_attribute == "CW" or attr.c_name_attribute == "HILO_CW":
+                                    item_value, attr_par_to_set = set_mask_to_config_words(item_value,
+                                                                                           GlobalObjectID.VARIABLE,
+                                                                                           'CW' if attr.c_name_attribute == "CW" else "HILO_CW")
+                                    # Сохраняем отдельно биты
+                                    for attr_info in attr_par_to_set:
+                                        item_id = None
+                                        for item_info in module_info_bits:
+                                            if item_info.n_attribute_id == attr_info[0].id:
+                                                item_id = item_info.id
+                                                break
+                                        if item_id:
+                                            records.append(
+                                                    cnfVariableValue(
+                                                        item_id,
+                                                        n_variable=variable,
+                                                        n_attribute=attr_info[0],
+                                                        f_value= 1 if (1 & item_value >> attr_info[1]) == 1 else 0,
+                                                        c_note="---",
+                                                    ))
+                                        else:
+                                            records_to_create.append(cnfVariableValue(
                                                 n_variable=variable,
                                                 n_attribute=attr_info[0],
-                                                f_value= 1 if (1 & item_value >> attr_info[1]) == 1 else 0,
+                                                f_value=1 if (1 & item_value >> attr_info[1]) == 1 else 0,
                                                 c_note="---",
                                             ))
-                                else:
+
+
+                                if not object_info:
+
                                     records_to_create.append(cnfVariableValue(
                                         n_variable=variable,
-                                        n_attribute=attr_info[0],
-                                        f_value=1 if (1 & item_value >> attr_info[1]) == 1 else 0,
+                                        n_attribute=attr,
+                                        f_value=round(item_value, precision),
                                         c_note="---",
                                     ))
+                                else:
+                                    item_found = False
+                                    precision = 5
 
+                                    for item in object_info:
+                                        if item.n_attribute.n_parameter_id == item_key:
+                                            item_found = True
+                                            precision = get_count_precision(item.f_value)
+                                            records.append(
+                                                    cnfVariableValue(
+                                                        item.id,
+                                                        n_variable=variable,
+                                                        n_attribute=attr,
+                                                        f_value=round(item_value, precision),
+                                                        c_note="---",
+                                                    ))
+                                            break
+                                    if not item_found:
+                                        records_to_create.append(cnfVariableValue(
+                                            n_variable=variable,
+                                            n_attribute=attr,
+                                            f_value=round(item_value, precision),
+                                            c_note="---",
+                                        ))
+                        
 
-                        if not object_info:
-                            records_to_create.append(cnfVariableValue(
-                                n_variable=variable,
-                                n_attribute=attr,
-                                f_value=item_value,
-                                c_note="---",
-                            ))
-                        else:
-                            item_found = False
-                            for item in object_info:
-                                if item.n_attribute.n_parameter_id == item_key:
-                                    item_found = True
-                                    records.append(
-                                            cnfVariableValue(
-                                                item.id,
-                                                n_variable=variable,
-                                                n_attribute=attr,
-                                                f_value=item_value,
-                                                c_note="---",
-                                            ))
-                                    break
-                            if not item_found:
-                                records_to_create.append(cnfVariableValue(
-                                    n_variable=variable,
-                                    n_attribute=attr,
-                                    f_value=item_value,
-                                    c_note="---",
-                                ))
-                  
-
-            else:
+                    else:
+                        pass
+                variable.save()
+            elif return_tlm_data_item.get(2) and return_tlm_data_item.get(2) == PlcCommandConstants.RETURN_CMD_READ_VARIABLE_FORMULA_CONFIG:
                 pass
-        variable.save()
     if records:
         cnfVariableValue.objects.bulk_update(records, ["f_value"])
     if records_to_create:
@@ -1280,58 +1298,63 @@ def upload_variables(request, plc_id, min=None, max=None, ajax=True):
                         return JsonResponse({"return_block": data_mismatch})
                 # varlist = [item for item in variable_info.values()]
                 elif variable_info:
+                    for return_tlm_data_item in return_block:
                     # Разбор основных данных из 0 индекса списка
-                    for item in variable_info:
-                        if item.n_attribute.c_name_attribute == "CW":
-                            # В слове разбираем только нужные биты
-                            attr_CW_mask = []  # [0]*16
-                            # masklist = [
-                            #     item
-                            #     for item in cnfAttribute.objects.filter(
-                            #         n_global_object_type=2,
-                            #         n_attribute_type=AttributeFieldType.BOOLEAN_FIELD,
-                            #         c_name_attribute__startswith="CW.",
-                            #     )
-                            #     .exclude(n_attr_display_order=0)
-                            #     .values()
-                            # ]
-                            for item_attr in cnfAttribute.objects.filter(
-                                n_global_object_type=2,
-                                n_attribute_type=AttributeFieldType.BOOLEAN_FIELD,
-                                c_name_attribute__startswith="CW.",
-                            ).exclude(n_attr_display_order=0):
-                                attr_CW_mask.append((item_attr.n_parameter_bit, 1))
-                            attr_CW_mask_int = get_int_from_bits(attr_CW_mask)
+                        for item in variable_info:
+                            if return_tlm_data_item.get(2) == PlcCommandConstants.RETURN_CMD_READ_VARIABLE_CONFIG and (item.n_attribute.c_name_attribute == "CW" or item.n_attribute.c_name_attribute == "HILO_CW"):
+                                # В слове разбираем только нужные биты
+                                # attr_CW_mask = []  # [0]*16
+                                # masklist = [
+                                #     item
+                                #     for item in cnfAttribute.objects.filter(
+                                #         n_global_object_type=2,
+                                #         n_attribute_type=AttributeFieldType.BOOLEAN_FIELD,
+                                #         c_name_attribute__startswith="CW.",
+                                #     )
+                                #     .exclude(n_attr_display_order=0)
+                                #     .values()
+                                # ]
+                                attr_CW_mask_int, attr_par_to_set = set_mask_to_config_words(return_tlm_data_item.get(item.n_attribute.n_parameter_id),
+                                                                                            GlobalObjectID.VARIABLE,
+                                                                                            'CW' if item.n_attribute.c_name_attribute == "CW" else 'HILO_CW')
 
-                            config_word = int(return_block[0].get(item.n_attribute.n_parameter_id))
-                            # Для битовой маски используем абсолютное значение
-                            config_word = abs(config_word) & 0xFFFF if config_word < 0 else config_word & 0xFFFF
-                            attr_CW_mask_int = attr_CW_mask_int & config_word
+                                # for item_attr in cnfAttribute.objects.filter(
+                                #     n_global_object_type=2,
+                                #     n_attribute_type=AttributeFieldType.BOOLEAN_FIELD,
+                                #     c_name_attribute__startswith="CW.",
+                                # ).exclude(n_attr_display_order=0):
+                                #     attr_CW_mask.append((item_attr.n_parameter_bit, 1))
+                                # attr_CW_mask_int = get_int_from_bits(attr_CW_mask)
 
-                            # attr_CW_mask_int = attr_CW_mask_int & int(
-                            #     return_block[0].get(item.n_attribute.n_parameter_id)
-                            # )
-                            if item.f_value != attr_CW_mask_int:
-                                data_mismatch.append(
-                                    f"{item.n_attribute.c_display_attribute}: БД[{int(item.f_value)}], ПЛК[{attr_CW_mask_int}]"
-                                )
-                        elif item.n_attribute.c_name_attribute == "Formula":
-                            # Разбор данных формулы из БД
-                            formula_parsed = get_formula_data(item.c_formula)
-                        else:
-                            precision = get_count_precision(item.f_value)
-                            if return_block[0].get(
-                                item.n_attribute.n_parameter_id
-                            ) is not None and item.f_value != round(
-                                return_block[0].get(item.n_attribute.n_parameter_id),
-                                precision,
-                            ):
-                                # if return_block.get(item.n_attribute.n_parameter_id) != None and item.f_value != return_block.get(item.n_attribute.n_parameter_id):
-                                data_mismatch.append(
-                                    f"{item.n_attribute.c_display_attribute}:"
-                                    f"{item.f_value}:  "
-                                    f"{round(return_block[0].get(item.n_attribute.n_parameter_id),precision)}"
-                                )
+                                # config_word = int(return_block[0].get(item.n_attribute.n_parameter_id))
+                                # # Для битовой маски используем абсолютное значение
+                                # config_word = abs(config_word) & 0xFFFF if config_word < 0 else config_word & 0xFFFF
+                                # attr_CW_mask_int = attr_CW_mask_int & config_word
+
+                                # attr_CW_mask_int = attr_CW_mask_int & int(
+                                #     return_block[0].get(item.n_attribute.n_parameter_id)
+                                # )
+                                if item.f_value != attr_CW_mask_int:
+                                    data_mismatch.append(
+                                        f"{item.n_attribute.c_display_attribute}: БД[{int(item.f_value)}], ПЛК[{attr_CW_mask_int}]"
+                                    )
+                            elif return_tlm_data_item.get(2) == PlcCommandConstants.RETURN_CMD_READ_VARIABLE_FORMULA_CONFIG and item.n_attribute.c_name_attribute == "Formula":
+                                # Разбор данных формулы из БД
+                                formula_parsed = get_formula_data(item.c_formula)
+                            elif return_tlm_data_item.get(2) == PlcCommandConstants.RETURN_CMD_READ_VARIABLE_CONFIG:
+                                precision = get_count_precision(item.f_value)
+                                if return_tlm_data_item.get(
+                                    item.n_attribute.n_parameter_id
+                                ) is not None and item.f_value != round(
+                                    return_tlm_data_item.get(item.n_attribute.n_parameter_id),
+                                    precision,
+                                ):
+                                    # if return_block.get(item.n_attribute.n_parameter_id) != None and item.f_value != return_block.get(item.n_attribute.n_parameter_id):
+                                    data_mismatch.append(
+                                        f"{item.n_attribute.c_display_attribute}:"
+                                        f"{item.f_value}:  "
+                                        f"{round(return_tlm_data_item.get(item.n_attribute.n_parameter_id),precision)}"
+                                    )
                 # Разбор данных формулы из 1 индекса списка
             if min == max:
                 return JsonResponse({"return_block": data_mismatch})

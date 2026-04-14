@@ -349,6 +349,7 @@ def read_buffer_last_changing(client: Snap7Client | SelfModbusTcpClient) -> bool
 
 def read_response_from_plc(client: Snap7Client | SelfModbusTcpClient, response_bad_data, download, return_block, prev_return_rec_last):
     # time_fix = time.time()
+    return_block_filtered = None
     response_ready = False
     tlm_data = {}
     rec_last = None
@@ -489,11 +490,15 @@ def read_response_from_plc(client: Snap7Client | SelfModbusTcpClient, response_b
                             )  # = item_val # tlm_data
                 print(f'{datetime.now().strftime("%H:%M:%S.%f")[:-3]}: Получены данные: {return_block}')
                 try:
+
                     for item_values in response_bad_data.values():
                         for item_resp in return_block:
                             if item_resp[1] >= 3 or (item_resp[1] == len(item_resp)): # только корректная телеграмма
                                 if int(item_values['data'][2][1]) == int(item_resp[3]):  # Проверяем, что индекс совпадает с тем, что запрашивали
-                                    return_block = [item_resp]
+                                    if not return_block_filtered:
+                                        return_block_filtered = [item_resp]
+                                    else:
+                                        return_block_filtered.append(item_resp)
                                     response_ready = True
                                 else: # ошибка
                                     if item_resp[2] in CmdError.MESSAGE.keys():
@@ -512,7 +517,7 @@ def read_response_from_plc(client: Snap7Client | SelfModbusTcpClient, response_b
         prev_return_rec_last = rec_last
     # send_wd_to_plc(client)
     # prev_return_rec_last = rec_last
-    return return_block, response_bad_data, return_timeout
+    return return_block_filtered, response_bad_data, return_timeout
 
 def get_plc_data(plc_id):
     """Тестовый метод для получения данных с ПЛК"""
@@ -785,7 +790,8 @@ def parse_error_data(data, bad_data, download, object_type):
     #     for item in cnfAttribute.objects.all()
     # }
     upload_data = None
-
+    if not data:
+        return None
     for item in data:
         if download:
             # item["error_num"] = cmd_data.get(item["error_num"])
