@@ -56,21 +56,33 @@ class ModuleListView(LoginRequiredMixin, ListView):
             "id", "c_desc_controller"
         )
         context["plc_id"] = int(self.kwargs["plc_id"])
+        # plc_selector = self.request.GET.get("plc_selector")
+        # if plc_selector:
+        #     context["plc_id"] = int(plc_selector)
+        # else:
+        #     context["plc_id"] = int(self.kwargs["plc_id"])
         context["all_count"] = self.kwargs.get("all_count")
         return context
 
     def get_queryset(self):
-        if self.request.GET.get("plc_selector") is not None:
-            if self.request.GET.get("plc_selector") != "":
-                self.kwargs["plc_id"] = self.request.GET["plc_selector"]
-                return get_modules_data_custom(
-                    n_controller=self.request.GET["plc_selector"],
-                )[0]
+        plc_selector = self.request.GET.get("plc_selector")
+        if plc_selector is not None and plc_selector != "":
+            self.kwargs["plc_id"] = int(plc_selector)
+            return get_modules_data_custom(
+                n_controller=plc_selector,
+            )[0]
 
         queryset = get_modules_data_custom(n_controller=self.kwargs["plc_id"])
         self.kwargs["all_count"] = queryset[1]
         return queryset[0]
 
+    def dispatch(self, request, *args, **kwargs):
+        plc_selector = request.GET.get("plc_selector")
+        if plc_selector and plc_selector != kwargs.get("plc_id"):
+            # Редирект на правильный URL без GET параметров
+            return redirect(reverse('modules:module_by_plc_filter', args=[plc_selector]))
+        return super().dispatch(request, *args, **kwargs)
+    
 class ModuleCreateView(LoginRequiredMixin, ModuleMixin, ModuleAuthMixin, CreateView):
     """Создание модуля."""
 
@@ -729,8 +741,12 @@ def upload_modules(request, plc_id, min=None, max=None, ajax=True):
             # response = {"return_block": return_block}
             # if isinstance(return_block, dict) and return_block.get("error_num"):
             if isinstance(return_block, list) and return_block[0].get("error_num"):
+                return_block[0]["index_num"] = module_index
                 data_mismatch.append(return_block[0].get("error_num"))
+                # return JsonResponse({"return_block": data_mismatch})
+                print(data_mismatch)
                 break
+
             elif not return_block:
                 data_mismatch.append("Нет ответа от ПЛК!")
             else:

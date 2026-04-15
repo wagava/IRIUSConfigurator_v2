@@ -1075,7 +1075,8 @@ def upload_variable_save(plc_id, variable_index, object_info, data) -> str:
                             n_controller=plc_id
                         ).first()
     # Вынести в константы ниже
-    cnfVariable_field_to_save = {8:'n_module_channel'}
+    cnfVariable_field_to_save = {8:'n_module_channel'}  # поля основной таблицы - не атрибута
+
     cnfVariable_field_fk_to_save = {30: {'field':'n_module_id',
                                          'table': cnfModule,
                                          'fk_field':'n_module_index',
@@ -1097,8 +1098,8 @@ def upload_variable_save(plc_id, variable_index, object_info, data) -> str:
         # n_variable_data_type
         # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         variable = cnfVariable.objects.create(n_variable_index=variable_index,
-                                          c_name_module=f'Variable {variable_index}',
-                                          c_desc_module=f'Variable {variable_index} description',
+                                          c_name_variable=f'Variable {variable_index}',
+                                          c_desc_variable=f'Variable {variable_index} description',
                                           n_controller=plc,
                                           c_user_edit=user_editing)
         # module.save
@@ -1108,26 +1109,46 @@ def upload_variable_save(plc_id, variable_index, object_info, data) -> str:
             if return_tlm_data_item.get(2) and return_tlm_data_item.get(2) == PlcCommandConstants.RETURN_CMD_READ_VARIABLE_CONFIG:
                 for item_key, item_value in return_tlm_data_item.items():
                     if item_key >= 5:
-                        attr = cnfAttribute.objects.get(n_parameter_id=item_key,n_global_object_type=GlobalObjectID.VARIABLE)
-                        if attr.c_name_attribute == "CW" or attr.c_name_attribute == "HILO_CW":
-                            item_value, attr_par_to_set = set_mask_to_config_words(item_value,
-                                                                                   GlobalObjectID.VARIABLE,
-                                                                                   'CW' if attr.c_name_attribute == "CW" else "HILO_CW")
-                            # Сохраняем отдельно биты
-                            for attr_info in attr_par_to_set:
-                                records_to_create.append(cnfVariableValue(
-                                    n_variable=variable,
-                                    n_attribute=attr_info[0],
-                                    f_value=1 if (1 & item_value >> attr_info[1]) == 1 else 0,
-                                    c_note="---",
-                                ))
+                        # Проверяем вхождение параметров в основную таблицу cnfVariable для обычных полей
+                        if item_key in cnfVariable_field_to_save.keys():
+                            setattr(variable, cnfVariable_field_to_save[item_key], item_value)
+                            # variable.save()
+                        # Проверяем вхождение параметров в основную таблицу cnfVariable для fk полей
+                        elif item_key in cnfVariable_field_fk_to_save:
+                            field_info = cnfVariable_field_fk_to_save[item_key]
+                            # Создаем словарь с условием фильтрации
+                            filter_kwargs = {field_info['fk_field']: item_value}
+                            if field_info.get('add_fk_field'):
+                                filter_kwargs[field_info['add_fk_field'][0]] = field_info['add_fk_field'][1]
+                            # Получаем связанный объект
+                            related_object = field_info['table'].objects.get(**filter_kwargs)
+                            # Присваиваем значение полю
+                            setattr(variable, field_info['field'], related_object)
+                            # variable.save()
+                            # setattr(variable, cnfVariable_field_fk_to_save(item_key)('field'),
+                            #         cnfVariable_field_fk_to_save(item_key)('table').objects.get(cnfVariable_field_fk_to_save(item_key)('fk_field')=item_value))
+                        else:
+                            attr = cnfAttribute.objects.filter(n_parameter_id=item_key,n_global_object_type=GlobalObjectID.VARIABLE).first()
+                            if attr:
+                                if attr.c_name_attribute == "CW" or attr.c_name_attribute == "HILO_CW":
+                                    item_value, attr_par_to_set = set_mask_to_config_words(item_value,
+                                                                                        GlobalObjectID.VARIABLE,
+                                                                                        'CW' if attr.c_name_attribute == "CW" else "HILO_CW")
+                                    # Сохраняем отдельно биты
+                                    for attr_info in attr_par_to_set:
+                                        records_to_create.append(cnfVariableValue(
+                                            n_variable=variable,
+                                            n_attribute=attr_info[0],
+                                            f_value=1 if (1 & item_value >> attr_info[1]) == 1 else 0,
+                                            c_note="---",
+                                        ))
 
-                        records_to_create.append(cnfVariableValue(
-                            n_variable=variable,
-                            n_attribute=cnfAttribute.objects.get(n_parameter_id=item_key,n_global_object_type=GlobalObjectID.VARIABLE),
-                            f_value=item_value,
-                            c_note="---",
-                        ))
+                                # records_to_create.append(cnfVariableValue(
+                                #     n_variable=variable,
+                                #     n_attribute=attr,
+                                #     f_value=item_value,
+                                #     c_note="---",
+                                # ))
             elif return_tlm_data_item.get(2) and return_tlm_data_item.get(2) == PlcCommandConstants.RETURN_CMD_READ_VARIABLE_FORMULA_CONFIG:
                 formula_str_parsed = get_formula_data(return_tlm_data_item)
                 attr = cnfAttribute.objects.filter(c_name_attribute='Formula',n_global_object_type=GlobalObjectID.VARIABLE).first()
@@ -1205,7 +1226,7 @@ def upload_variable_save(plc_id, variable_index, object_info, data) -> str:
                                                 c_note="---",
                                             ))
 
-
+                                precision = 5
                                 if not object_info:
 
                                     records_to_create.append(cnfVariableValue(
@@ -1216,7 +1237,7 @@ def upload_variable_save(plc_id, variable_index, object_info, data) -> str:
                                     ))
                                 else:
                                     item_found = False
-                                    precision = 5
+                                    # precision = 5
 
                                     for item in object_info:
                                         if item.n_attribute.n_parameter_id == item_key:

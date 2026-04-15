@@ -795,9 +795,14 @@ def send_data_to_plc(plc_id, data, object_type, handler_class=None, download=Non
                 return_block, response_bad_data, download=True, object_type=object_type
             )
     else:
-        return_block = parse_error_data(
-            return_block, response_bad_data, download=False, object_type=object_type
-        )
+        if return_timeout:
+            return_block.append(
+                {"error_num": "Превышено время ожидания ответа от ПЛК...", "index_num": "None", "param_num": "None"}
+            )
+        else:
+            return_block = parse_error_data(
+                return_block, response_bad_data, download=False, object_type=object_type
+            )
     print(f'{datetime.now().strftime("%H:%M:%S.%f")[:-3]}: Получена телеграмма: {return_block}')
     return return_block
 

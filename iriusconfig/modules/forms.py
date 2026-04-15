@@ -54,7 +54,10 @@ class ModuleForm(forms.ModelForm):
                 id_new = 1
 
             self.base_fields["n_module_index"].initial = id_new
-            self.base_fields["n_controller"].initial = plc_id
+            # self.base_fields["n_controller"].initial = plc_id
+            self.base_fields["n_controller"].initial = (
+            self.initial["n_controller"] if module_id else plc_id
+        )
 
             # self.base_fields["c_name_module"].initial = 'Module'
             # self.base_fields["c_desc_module"].initial = 'Desc'
