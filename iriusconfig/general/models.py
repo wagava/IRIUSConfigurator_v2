@@ -30,7 +30,7 @@ class cnfController(models.Model):
         verbose_name_plural = "Controllers"
 
     def __str__(self):
-        return self.c_name_controller
+        return self.c_desc_controller
 
 
 class cnfAttribute(models.Model):

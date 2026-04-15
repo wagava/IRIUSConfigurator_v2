@@ -349,7 +349,7 @@ def read_buffer_last_changing(client: Snap7Client | SelfModbusTcpClient) -> bool
 
 def read_response_from_plc(client: Snap7Client | SelfModbusTcpClient, response_bad_data, download, return_block, prev_return_rec_last):
     # time_fix = time.time()
-    return_block_filtered = None
+    return_block_filtered = []
     response_ready = False
     tlm_data = {}
     rec_last = None
@@ -447,6 +447,9 @@ def read_response_from_plc(client: Snap7Client | SelfModbusTcpClient, response_b
                 resp_keys = response_bad_data.keys()
                 # temp_list.extend(tlm_data)
                 print(f'{datetime.now().strftime("%H:%M:%S.%f")[:-3]}: Данные из Rec {tlm_data}')
+                tlm_data_sent_length = len(response_bad_data)
+                # print(f'tlm_data_sent_length = {tlm_data_sent_length}')
+                # print(f'tlm_data = {len(tlm_data)}')
                 for item_key, item_val in tlm_data.items():
                     if download:
                         # При записи в контроллер может быть получена телеграмма длиной 3,5
@@ -460,10 +463,12 @@ def read_response_from_plc(client: Snap7Client | SelfModbusTcpClient, response_b
                         if (
                             item_val.get(2) == 1
                         ):  # Если порядковый номер параметра = 2, и там результат "успешно" - выбрасываем
+                            tlm_data_sent_length -= 1
                             if (
                                 item_val.get(3) in resp_keys
                             ):  # При хорошем ответе в третьем параметре пишется номер телеграммы
                                 # if item_val[1] == 1: # Если порядковый номер параметра = 1, и там результат "успешно" - выбрасываем
+                                # return_block_filtered.append(item_val)
                                 if response_bad_data.get(item_val[3]):
                                     response_bad_data.pop(item_val[3])
                                 if not response_bad_data:
@@ -472,6 +477,7 @@ def read_response_from_plc(client: Snap7Client | SelfModbusTcpClient, response_b
                             # смотрим ошибку
                             # разбираем ошибку по справочнику и указываем для каого элементы
                             # т.е. формируем понятный ответ для пользователя
+                            tlm_data_sent_length -= 1
                             if len(item_val) <= 5: # Под команды записи в контроллер не должна быть телеграмма больше 5 элементов
                                 item_dict = {
                                     "error_num": item_val.get(2),
@@ -483,37 +489,42 @@ def read_response_from_plc(client: Snap7Client | SelfModbusTcpClient, response_b
                                 # temp_list.append(item_val)
                                 if item_dict not in return_block:
                                     # return_block.append(item_dict)
-                                    if return_block_filtered:
-                                        return_block_filtered.append(item_dict)
-                                    else:
-                                        return_block_filtered = [item_dict]
+                                    return_block_filtered.append(item_dict)
+                                    # if return_block_filtered:
+                                    #     return_block_filtered.append(item_dict)
+                                    # else:
+                                    #     return_block_filtered = [item_dict]
+                        if tlm_data_sent_length <= 0:
+                            response_ready = True
                     else:  # upload
                         if item_val not in return_block:
                             # return_block.append(
                             #     item_val
                             # )  # = item_val # tlm_data
-                            if return_block_filtered:
-                                return_block_filtered.append(item_val)              
-                            else:
-                                return_block_filtered = [item_val]  
+                            return_block.append(item_val)
+                            # if return_block_filtered:
+                            #     return_block_filtered.append(item_val)              
+                            # else:
+                            #     return_block_filtered = [item_val]  
                 # print(f'{datetime.now().strftime("%H:%M:%S.%f")[:-3]}: Получены данные: {return_block}')
                 print(f'{datetime.now().strftime("%H:%M:%S.%f")[:-3]}: Получены данные: {return_block_filtered}')
                 try:
-
-                    for item_values in response_bad_data.values():
-                        for item_resp in return_block:
-                            if item_resp[1] >= 3 or (item_resp[1] == len(item_resp)): # только корректная телеграмма
-                                if int(item_values['data'][2][1]) == int(item_resp[3]):  # Проверяем, что индекс совпадает с тем, что запрашивали
-                                    if not return_block_filtered:
-                                        return_block_filtered = [item_resp]
-                                    else:
+                    if not download:
+                        for item_values in response_bad_data.values():
+                            for item_resp in return_block:
+                                if item_resp[1] >= 3 or (item_resp[1] == len(item_resp)): # только корректная телеграмма
+                                    if int(item_values['data'][2][1]) == int(item_resp[3]):  # Проверяем, что индекс совпадает с тем, что запрашивали
                                         return_block_filtered.append(item_resp)
-                                    response_ready = True
-                                else: # ошибка
-                                    if item_resp[2] in CmdError.MESSAGE.keys():
-                                        # return_block = [item_resp]
-                                        print(f'Ошибка с контроллера: {item_resp} - {CmdError.MESSAGE[item_resp[2]]}')
+                                        # if not return_block_filtered:
+                                        #     return_block_filtered = [item_resp]
+                                        # else:
+                                        #     return_block_filtered.append(item_resp)
                                         response_ready = True
+                                    else: # ошибка
+                                        if item_resp[2] in CmdError.MESSAGE.keys():
+                                            # return_block = [item_resp]
+                                            print(f'Ошибка с контроллера: {item_resp} - {CmdError.MESSAGE[item_resp[2]]}')
+                                            response_ready = True
                 except Exception as er:
                     print(f'Ошибка при разборе телеграммы (формат): {er}')
                 # response_ready = True
@@ -800,7 +811,22 @@ def parse_error_data(data, bad_data, download, object_type):
     # }
     upload_data = None
     if not data:
-        return None
+        response_list = [
+            {
+                "error_num": "Успешная загрузка в ПЛК!",
+                "param_num": "",
+            }
+        ]
+        if bad_data:
+
+            var_list = []
+            for bad_data_item_key, bad_data_item_value in bad_data.items():
+                if bad_data_item_value.get(2):
+                    var_list.append(bad_data_item_value.get(2)) 
+            if var_list:
+                response_list[0]['index_num'] = f"Сбой в переменныых: {var_list}"
+        return response_list
+
     for item in data:
         if download:
             # item["error_num"] = cmd_data.get(item["error_num"])

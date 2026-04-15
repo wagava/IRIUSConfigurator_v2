@@ -1065,7 +1065,7 @@ def download_variables(request=None, plc_id=None, min=None, max=None, ajax=True)
         return {"error_back": return_block_errors}
 
 
-def upload_module_save(plc_id, variable_index, object_info, data) -> str:
+def upload_variable_save(plc_id, variable_index, object_info, data) -> str:
     """Обновление данных модуля из ПЛК в БД."""
     
     records = []
@@ -1154,7 +1154,7 @@ def upload_module_save(plc_id, variable_index, object_info, data) -> str:
                 for item_key, item_value in return_tlm_data_item.items():
                     
                     if item_key >= 5:  # До 5 индекса - это данные по телеграмме
-                        print(f'item_key = {item_key}')
+                        # print(f'item_key = {item_key}')
                         # Проверяем вхождение параметров в основную таблицу cnfVariable для обычных полей
                         if item_key in cnfVariable_field_to_save.keys():
                             setattr(variable, cnfVariable_field_to_save[item_key], item_value)
@@ -1326,7 +1326,7 @@ def upload_variables(request, plc_id, min=None, max=None, ajax=True):
                     if len(return_block[0]) < 5:
                         data_mismatch.append(f'Данные по индексу {variable_index} пришли с ошибкой {return_block}')
                     else:
-                        data_mismatch.append(upload_module_save(plc_id, variable_index, variable_info, return_block))
+                        data_mismatch.append(upload_variable_save(plc_id, variable_index, variable_info, return_block))
                     if min == max:
                         return JsonResponse({"return_block": data_mismatch})
                 # varlist = [item for item in variable_info.values()]
