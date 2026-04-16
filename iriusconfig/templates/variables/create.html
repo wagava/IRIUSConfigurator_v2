@@ -508,9 +508,9 @@ $("#btn_upload").on('click', function (e){
               for (var x=0; x<data.return_block.length; x++)
               {
                   console.log(data.return_block[x])
-                  if (data.return_block[0] == 'Нет ответа от ПЛК!')
+                  if ((data.return_block[0] == 'Нет ответа от ПЛК!') || (data.return_block[x] == 'Превышено время ожидания ответа от ПЛК...'))
                   {
-                    messages = ['Нет ответа от ПЛК!'];
+                    messages = ['Превышено время ожидания ответа от ПЛК!'];
                   }
                   else
                   {

@@ -219,20 +219,37 @@
               if (data) {
                   console.log(data);
                   console.log('выполнился success');
+                  console.log(data)
                   if (data.return_block.length > 0)
                   {
                   var messages = ['Данные в БД и ПЛК не соответствуют по следующим позициям:\r\n\r\n'];
                   //if (data.error_back == true)  
                   //{
                     //alert('выполнился success');
-                    console.log(data.return_block)
+                    
                     //alert(data.error_back);                    
-                    for (var x=0; x<data.return_block.length; x++)
+                    /*for (var x=0; x<data.return_block.length; x++)
                     {
                       console.log(data.return_block[x])
                       messages.push(data.return_block[x] + '\r\n\r\n')
                     }
                     alert(messages);
+                  }
+                  else
+                  {alert('Данные в БД и ПЛК идентичны');}*/
+                  for (var x=0; x<data.return_block.length; x++)
+                  {
+                      console.log(data.return_block[x])
+                      if ((data.return_block[0] == 'Нет ответа от ПЛК!') || (data.return_block[x] == 'Превышено время ожидания ответа от ПЛК...'))
+                      {
+                        messages = ['Превышено время ожидания ответа от ПЛК!'];
+                      }
+                      else
+                      {
+                        messages.push(data.return_block[x] + '\r\n\r\n')
+                      }
+                  }
+                  alert(messages);
                   }
                   else
                   {alert('Данные в БД и ПЛК идентичны');}

@@ -723,7 +723,9 @@ def upload_modules(request, plc_id, min=None, max=None, ajax=True):
         min = m_index
     else:
         m_index = min  #начинается с 1-го индекса (не id)
-
+    
+    DownloadToPLCInstance.download_max_count = max - min + 1
+    # print(f'DownloadToPLCInstance.download_max_count = {DownloadToPLCInstance.download_max_count}')
     for module_index in range(m_index, max+1):
         clean_data = {
             min: [
@@ -732,7 +734,8 @@ def upload_modules(request, plc_id, min=None, max=None, ajax=True):
                 [3, module_index],
             ]
         }
-        
+        DownloadToPLCInstance.download_next(1)
+        # print(f'module_index - min = {module_index - min}')
         return_block = send_data_to_plc(
             plc_id, clean_data, GlobalObjectID.MODULE, None, False, action if action else None
         )  # DownloadToPLCInstance)
@@ -745,7 +748,7 @@ def upload_modules(request, plc_id, min=None, max=None, ajax=True):
                 data_mismatch.append(return_block[0].get("error_num"))
                 # return JsonResponse({"return_block": data_mismatch})
                 print(data_mismatch)
-                break
+                # break
 
             elif not return_block:
                 data_mismatch.append("Нет ответа от ПЛК!")
@@ -805,6 +808,7 @@ def upload_modules(request, plc_id, min=None, max=None, ajax=True):
         if min == max:
             return {"return_block": return_block}
     # return JsonResponse({"return_block": data_mismatch})
+    DownloadToPLCInstance.download_next(DownloadToPLCInstance.download_max_count)
     return HttpResponseRedirect(reverse("modules:module_by_plc", kwargs={"plc_id": plc_id}))
 
 def check_state(request):

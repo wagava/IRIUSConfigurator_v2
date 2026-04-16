@@ -66,6 +66,8 @@ class DownloadToPLC:
         if self.download_max_count != 0:
             self.percent_num += round((next_value * 100) / self.download_max_count, 0)
             self.percent_num = self.percent_num if self.percent_num <= 100 else 100
+            # print(f'==================== self.next_value = {self.next_value}')
+            # print(f'==================== self.percent_num = {self.percent_num}')
 
 
 def get_module_data_to_plc(data, command):

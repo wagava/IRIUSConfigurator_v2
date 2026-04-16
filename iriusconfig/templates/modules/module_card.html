@@ -22,10 +22,20 @@
   </div>
 
 <script>
-  $(document).ready(function() {
+  /*$(document).ready(function() {
     var module_id = {{ module.id|escapejs }};
     row_tbl[{{ module.id|escapejs }}] = false;
   
+  });*/
+$(document).ready(function() {
+    var module_id = {{ module.id|escapejs }};
+    // Проверяем, существует ли row_tbl
+    if (typeof row_tbl !== 'undefined') {
+      row_tbl[module_id] = false;
+    } else {
+      // Если еще не существует, создаем
+      window.row_tbl = window.row_tbl || {};
+      window.row_tbl[module_id] = false;
+    }
   });
-
 </script>

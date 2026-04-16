@@ -244,8 +244,8 @@ def get_sending_data(sending_data, sending_data_additional, telegram, cmd_rec_la
 
         block_length = len(sending_data["data"]) + len(telegram)
 
-        # compare_value = (255 - (cmd_rec_last_val + 1)) * 3
-        compare_value = (256 - (cmd_rec_last_val + 1)) * 3
+        compare_value = (256 - (cmd_rec_last_val + 1)) * 3  # Изменение Rec[0] на Rec[1] для записи
+        # compare_value = (256 - (cmd_rec_last_val + 1)) * 3 
         if block_length <= compare_value:
             # Если вмещается телеграмма, то добавляем
             if sending_data.get("data"):
@@ -257,11 +257,11 @@ def get_sending_data(sending_data, sending_data_additional, telegram, cmd_rec_la
             # Проверяем, вместится ли она с переходом на начало буфера
             # Если вмещается, то добавляем, иначе пишем данные в ожидаемый список
 
-            # if block_length <= 255 * 3:
-            if block_length <= 256 * 3:
+            if block_length <= 255 * 3:  # Изменение Rec[0] на Rec[1] для записи
+            # if block_length <= 256 * 3:
 
-                # before_256 = (255 - (cmd_rec_last_val + 1)) * 3
-                before_256 = (256 - (cmd_rec_last_val + 1)) * 3
+                before_256 = (256 - (cmd_rec_last_val + 1)) * 3  # Изменение Rec[0] на Rec[1] для записи
+                # before_256 = (256 - (cmd_rec_last_val + 1)) * 3
                 num = int(
                     before_256 - len(sending_data["data"])
                 )  # сколько нужно добрать
@@ -281,8 +281,9 @@ def get_sending_data(sending_data, sending_data_additional, telegram, cmd_rec_la
                 rec_last_value_for_writing = (
                     (rec_last_value_for_writing - len(current_item))
                     if rec_last_value_for_writing > len(current_item)
-                    # else 255 + rec_last_value_for_writing - len(current_item)
-                    else 256 + rec_last_value_for_writing - len(current_item)
+                    else 255 + rec_last_value_for_writing - len(current_item) # Изменение Rec[0] на Rec[1] для записи
+                    # else 256 + rec_last_value_for_writing - len(current_item)
+                      
                 )
     else:
         # Уже распечатали sending_data_additional
@@ -295,7 +296,7 @@ def get_sending_data(sending_data, sending_data_additional, telegram, cmd_rec_la
             rec_last_value_for_writing = (
                 rec_last_value_for_writing - compare_value
                 if rec_last_value_for_writing > compare_value
-                # else (255 + rec_last_value_for_writing) - compare_value
+                # else (255 + rec_last_value_for_writing) - compare_value  # Изменение Rec[0] на Rec[1] для записи
                 else (256 + rec_last_value_for_writing) - compare_value
             )
 
@@ -613,10 +614,11 @@ def send_data_to_plc(plc_id, data, object_type, handler_class=None, download=Non
         # rec_last_value_for_writing = rec_last_value_for_writing - (
         #     (rec_last_value_for_writing // 255) * 255
         # )
-        rec_last_value_for_writing = rec_last_value_for_writing % 256
+        # rec_last_value_for_writing = rec_last_value_for_writing % 256
+        rec_last_value_for_writing = rec_last_value_for_writing % 255  # Изменение Rec[0] на Rec[1] для записи
         
         # tlm_num = tlm_num + 1 if tlm_num <= 254 and tlm_num >= 0 else 1
-        tlm_num = tlm_num + 1 if tlm_num <= 255 and tlm_num >= 0 else 1
+        tlm_num = tlm_num + 1 if tlm_num <= 254 and tlm_num >= 0 else 1
         tlm_send += 1
         telegram = []
         print("tlm_num (стало) = ", tlm_num)
@@ -630,7 +632,8 @@ def send_data_to_plc(plc_id, data, object_type, handler_class=None, download=Non
             telegram = idle_data
             # if client_type == ClientTypes.MODBUS:
             sending_data["start_address"] = int(
-                (cmd_rec_last_val + 1) * PlcAddressBlockConstants.REC_LENGTH_IN_BYTE
+                cmd_rec_last_val * PlcAddressBlockConstants.REC_LENGTH_IN_BYTE # Изменение Rec[0] на Rec[1] для записи
+                # (cmd_rec_last_val + 1) * PlcAddressBlockConstants.REC_LENGTH_IN_BYTE
                 + PlcAddressBlockConstants.CMD_DATA_BLOCKS_REC_ADDRESS
             )
             # elif client_type == ClientTypes.SIMATIC:
@@ -642,7 +645,9 @@ def send_data_to_plc(plc_id, data, object_type, handler_class=None, download=Non
             rec_last_value_for_writing += len(idle_data) / 3
 
             rec_last_value_for_writing = rec_last_value_for_writing - (
-                (rec_last_value_for_writing // 256) * 256
+                # (rec_last_value_for_writing // 256) * 256
+                (rec_last_value_for_writing // 255) * 255  # Изменение Rec[0] на Rec[1] для записи
+                  
             )
             # rec_last_value_for_writing = rec_last_value_for_writing - (
             #     (rec_last_value_for_writing // 255) * 255
@@ -687,7 +692,8 @@ def send_data_to_plc(plc_id, data, object_type, handler_class=None, download=Non
                 # (Последний блок записи*длину блока(2 байта и один реал = 3 ворда)
                 # и добавляем смещение от нуля, откуда начинаются блоки для записи)
                 sending_data["start_address"] = (
-                    (cmd_rec_last_val + 1) * PlcAddressBlockConstants.REC_LENGTH_IN_BYTE
+                    cmd_rec_last_val * PlcAddressBlockConstants.REC_LENGTH_IN_BYTE  # Изменение Rec[0] на Rec[1] для записи
+                    # (cmd_rec_last_val + 1) * PlcAddressBlockConstants.REC_LENGTH_IN_BYTE
                     + PlcAddressBlockConstants.CMD_DATA_BLOCKS_REC_ADDRESS
                 )
             if client_type == ClientTypes.MODBUS:
@@ -718,11 +724,17 @@ def send_data_to_plc(plc_id, data, object_type, handler_class=None, download=Non
             #     if rec_last_value_for_writing <= 254
             #     else (rec_last_value_for_writing - 255)
             # )
+            # word2 = get_2_words_from_float(
+            #     rec_last_value_for_writing
+            #     if rec_last_value_for_writing <= 255
+            #     else (rec_last_value_for_writing - 256)
+            # )
             word2 = get_2_words_from_float(
                 rec_last_value_for_writing
-                if rec_last_value_for_writing <= 255
-                else (rec_last_value_for_writing - 256)
-            )
+                if rec_last_value_for_writing <= 254
+                else (rec_last_value_for_writing - 255)
+            ) # Изменение Rec[0] на Rec[1] для записи
+              
             # if client_type == ClientTypes.MODBUS:
             word2_ord = {ClientTypes.MODBUS: [word2[1],word2[0]],
                          ClientTypes.SIMATIC: [word2[0],word2[1]]}

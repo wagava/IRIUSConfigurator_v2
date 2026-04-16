@@ -1263,7 +1263,7 @@ def upload_variable_save(plc_id, variable_index, object_info, data) -> str:
 
                     else:
                         pass
-                variable.save()
+                # variable.save()
             elif return_tlm_data_item.get(2) and return_tlm_data_item.get(2) == PlcCommandConstants.RETURN_CMD_READ_VARIABLE_FORMULA_CONFIG:
                 formula_str_parsed = get_formula_data(return_tlm_data_item)
                 attr = cnfAttribute.objects.filter(c_name_attribute='Formula',n_global_object_type=GlobalObjectID.VARIABLE).first()
@@ -1291,6 +1291,7 @@ def upload_variable_save(plc_id, variable_index, object_info, data) -> str:
                 # else:                        
                 # if item.c_formula != formula_str_parsed:
                 #     pass
+    variable.save()                
     if records:
         cnfVariableValue.objects.bulk_update(records, ["f_value","c_formula"])
     if records_to_create:
@@ -1299,7 +1300,7 @@ def upload_variable_save(plc_id, variable_index, object_info, data) -> str:
     return "Данные модуля обновлены."
 
 def upload_variables(request, plc_id, min=None, max=None, ajax=True):
-
+    DownloadToPLCInstance.clear()
     if None in [min, max]:
         min = int(request.GET.get("min"))
         max = int(request.GET.get("max"))
@@ -1314,6 +1315,8 @@ def upload_variables(request, plc_id, min=None, max=None, ajax=True):
     else:
         v_index = min  #начинается с 1-го индекса (не id)
 
+    DownloadToPLCInstance.download_max_count = max - min + 1
+
     for variable_index in range(v_index, max+1):
 
         clean_data = {
@@ -1323,17 +1326,20 @@ def upload_variables(request, plc_id, min=None, max=None, ajax=True):
                 [3, variable_index],
             ]
         }
-
+        DownloadToPLCInstance.download_next(variable_index-min)
         return_block = send_data_to_plc(
             plc_id, clean_data, GlobalObjectID.VARIABLE, None, False
         )  # DownloadToPLCInstance)
 
         if ajax:
             data_mismatch = []
-            if isinstance(return_block, dict) and return_block.get("error_num"):
+            if isinstance(return_block, dict): # and return_block.get("error_num"):
                 pass
             elif not return_block:
                 data_mismatch.append("Нет ответа от ПЛК!")
+            elif isinstance(return_block, list) and return_block[0].get("error_num"):
+                data_mismatch.append(return_block[0].get("error_num"))    
+                # {"error_back": return_block_errors}            
             else:
                 variable_info = (
                     cnfVariableValue.objects.select_related("n_variable", "n_attribute")
@@ -1420,6 +1426,7 @@ def upload_variables(request, plc_id, min=None, max=None, ajax=True):
                 return JsonResponse({"return_block": data_mismatch})
         if min == max:
             return {"return_block": return_block[0]}
+    DownloadToPLCInstance.download_next(DownloadToPLCInstance.download_max_count)
     return HttpResponseRedirect(reverse('variables:variable_by_plc',kwargs={'plc_id':plc_id}))
 
 
